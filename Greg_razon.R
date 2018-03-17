@@ -1,101 +1,67 @@
-#*******************************************************************************************************
-#******************************* Estimador de razón por dominios ***************************************
-#*******************************************************************************************************
+#***************************
+# LIBRERIAS ####
+#***************************
 
 library(survey)
+library(dplyr)
 library(TeachingSampling)
-library(ggplot2)
+options(scipen = 999)
 
-## 1. Lectura info ####
-#*********************************
+#*************************
+# PUNTO 1 #### 
+#*************************
 
-# Base poblacional
-data("BigLucy")
+# Cargar la muestra
+mue <- readRDS("muestra_2etapas.rds")
+sum(mue$fexp) # N gorro
 
-# Muestra estratificada MAS
-muestra <- readRDS("./data/muestra_2Etapas.rds")
+# Real de BigLucy
+data("BigLucy"); nrow(BigLucy)
+mean(BigLucy$Income)
 
-## 2. Var auxiliar Taxes ####
-#*********************************
-# Y: Income
-# X: Taxes
-# Dominios: SPAM
+# diseño muestral
+diseno <- svydesign(ids =~ Segments + ID, strata=~ estrato_segmento, fpc=~ N_h + Ni, data=mue)
 
-# Relación variable auxiliar
-f <- ggplot(muestra_estrat, aes(Taxes, Income)) +
-  ggtitle("Relación de 'Income' vs 'Taxes'") +
-  xlab("Taxes") + 
-  ylab("Income")
-f + geom_point(colour = "deepskyblue4", size = 3)
+#*************************
+# PUNTO 1a #### 
+#*************************
 
-#***********************************
-# 1a Estimador de razón - con TAXES ####
-#***********************************
+# Estimador de razon de dominios --> dominio=SPAM
 
-# Estimar el ingreso por el dominio de Level
+# Variable auxiliar Taxes
+svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio)
+cv(svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio))*100
 
-diseno <- svydesign(ids =~ Segments + ID, 
-                    strata =~ estrato_segmento, 
-                    fpc =~ N_h + Ni, data = muestra)
+#*************************
+# PUNTO 1b #### 
+#*************************
 
-# total estimado de Income directo por dominio
-Income_d_est <- svyby(~Income, ~SPAM, diseno, FUN = svytotal)
-Income_d_est_cv <- 100 * cv( svyby(~Income,~SPAM, diseno, FUN = svytotal))
+# Estimador de razon de dominios --> dominio=SPAM
 
-# Total de taxes en población Biglucy
-Xd <- BigLucy %>%
-      group_by(SPAM) %>%
-      summarise(Taxes_d = sum(Taxes))
-Xd <- as.data.frame(Xd)
+# Variable auxiliar Employees
+svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio)
+cv(svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio))*100
 
-# total estimado de Taxes directo por dominio
-Taxes_d_est <- svyby(~Taxes, ~SPAM, diseno, FUN = svytotal)
-Taxes_d_est_cv <- 100 * cv( svyby(~Taxes,~SPAM, diseno, FUN = svytotal))
+#*************************
+# PUNTO 1c #### 
+#*************************
 
-# Estimador de razón por dominios
+# Estimador de razón global para Taxes
+svyratio(~Income, denominator=~Taxes, design =  diseno)
+cv(svyratio(~Income, denominator=~Taxes, design =  diseno))*100
 
-# Para SPAM=yes
-Income_yes <- (Income_d_est$Income[which(Income_d_est$SPAM=="yes")] * 
-              Xd$Taxes_d[which(Xd$SPAM=="yes")]) / 
-              Taxes_d_est$Taxes[which(Taxes_d_est$SPAM=="yes")]
-Income_yes
+# Estimador de razón global para Employess
+svyratio(~Income, denominator=~Employees, design =  diseno)
+cv(svyratio(~Income, denominator=~Employees, design =  diseno))*100
 
-# Para SPAM=no
-Income_no <- (Income_d_est$Income[which(Income_d_est$SPAM=="no")] * 
-              Xd$Taxes_d[which(Xd$SPAM=="no")]) / 
-              Taxes_d_est$Taxes[which(Taxes_d_est$SPAM=="no")]
-Income_no
+#*************************
+# PUNTO 1d #### 
+#*************************
 
-# Revisamos contra BigLucy real
-Income_d_real <- BigLucy %>%
-                   group_by(SPAM) %>%
-                   summarise(Income_d_real=sum(Income))
-Income_d_real
+# Estimador promedio para promedio por dominio=SPAM
+svyby(~Income, ~SPAM, diseno, FUN=svymean)
+cv(svyby(~Income, ~SPAM, diseno, FUN=svymean))*100
 
-#******************************
-# Varianza de la estimación
-#******************************
-muestra$R_d <- muestra$Income / muestra$Taxes
-diseno <- svydesign(ids =~ Segments + ID, 
-                    strata =~ estrato_segmento, 
-                    fpc =~ N_h + Ni, data = muestra)
-
-R_d_expandido <- data.frame(SPAM=rep(muestra$SPAM, floor(muestra$fexp)), 
-                            R_d=rep(muestra$R_d, floor(muestra$fexp)))
-
-Var_yes <- Xd$Taxes_d[Xd$SPAM=="yes"]^2 * sd(R_d_expandido$R_d[R_d_expandido$SPAM=="yes"])
-cv_yes <- sqrt(Var_yes) / Income_yes * 100
-
-Var_no <- Xd$Taxes_d[Xd$SPAM=="no"]^2 * sd(R_d_expandido$R_d[R_d_expandido$SPAM=="no"])
-cv_no <- sqrt(Var_no) / Income_yes * 100
-
-## Tabla de resultados
-res1 <- data.frame(SPAM=c("no", "sisas"),
-                   Income_dir=c(Income_no,Income_yes),
-                   cv_Income_dir=Income_d_est_cv,
-                   Taxes_dir=Taxes_d_est$Taxes,
-                   cv_Taxes_dir=Taxes_d_est_cv,
-                   Rd=c(Income_no,Income_yes)/Taxes_d_est$Taxes,
-                   cv_Rd=c(cv_no, cv_yes))
-res1
-
+# Estimador promedio global
+svymean(~Income, diseno)
+cv(svymean(~Income, diseno))*100
