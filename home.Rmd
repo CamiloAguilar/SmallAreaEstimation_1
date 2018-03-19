@@ -90,3 +90,9 @@ kable(Income_Employees, "html") %>%
   add_footnote(c("Estimación Income por SPAM con variable auxiliar Taxes"), notation = "number")
 
 ```
+
+
+
+
+
+
