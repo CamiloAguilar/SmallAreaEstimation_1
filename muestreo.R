@@ -157,7 +157,6 @@ level_est_table <- data.frame(Level_est_mean, cv = cv_Level_est_mean)
 #************************************************************
 
 # Marco Muestral
-rm(list = ls())
 data("BigLucy")
 set.seed(100318)
 
@@ -175,8 +174,8 @@ sum(n_h)
 set.seed(100318)  
 estrato <- sampling::strata(data=BigLucy, stratanames="Zone", 
                                    size=n_h, method="srswor", description=FALSE)
-muestra <- BigLucy[estrato$ID_unit,]  
-muestra <- sampling::getdata(BigLucy,estrato)
+muestra_3 <- BigLucy[estrato$ID_unit,]  
+muestra_3 <- sampling::getdata(BigLucy,estrato)
 
 # Para Income
 # Variable agrupamiento Level y por el dominio ISO (no, yes)
@@ -184,20 +183,19 @@ muestra <- sampling::getdata(BigLucy,estrato)
 
 Tamanos_Estrato <- as.data.frame(table(BigLucy$Zone))
 names(Tamanos_Estrato) <- c("Zone", "N_h")  
-muestra <- merge(muestra, Tamanos_Estrato)
-length(muestra$Zone)
+muestra <- merge(muestra_3, Tamanos_Estrato)
+length(muestra_3$Zone)
 
 Tamanos_muestra<- as.data.frame(table(muestra$Zone))
 names(Tamanos_muestra) <- c("Zone", "n_h")
-muestra <- merge(muestra, Tamanos_muestra)
-length(muestra$Zone)
-
+muestra <- merge(muestra_3, Tamanos_muestra)
+length(muestra_3$Zone)
 
 # Diseño de muestra
-diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
+diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
 
 # Muestra
-table(muestra$ISO,muestra$Level)
+table(muestra_3$ISO,muestra$Level)
 
 # Real
 table(BigLucy$ISO,BigLucy$Level)
