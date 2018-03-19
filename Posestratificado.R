@@ -34,12 +34,13 @@ Spam_Level_cv <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svytotal))
 #*****************************************************
 # SPAM
 Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)
-100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)) 
+cv_spam_est <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)) 
+spam_est_table <- data.frame(Spam_est, cv = cv_spam_est)
 
 # Level
 Level_est <- svyby(~Income, ~Level, diseno, FUN=svytotal)
-100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svytotal)) 
-
+cv_Level_est <- 100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svytotal)) 
+level_est_table <- data.frame(Level_est, cv = cv_Level_est)
 
 #*****************************************************
 ## 2c. Estimación del promedio ####
