@@ -148,61 +148,51 @@ Level_est_mean <- svyby(~Income, ~Level, diseno, FUN=svymean)
 cv_Level_est_mean <- 100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svymean)) 
 level_est_table <- data.frame(Level_est_mean, cv = cv_Level_est_mean)
 
+#*****************************
+# 3. Diseño Estratificado ####
+#*****************************
+
 #**********************************************************
-# 3. Diseño estratificado estrato Zone, semilla=100318 ####
+# 3.a. Diseño estratificado estrato Zone, semilla=100318 ####
 #**********************************************************
 
 # Marco Muestral
 data("BigLucy")
 set.seed(100318)
 
-# Diseño estratificado
+# Descripción Diseño Estratificado
 Nh <- summary(BigLucy$Zone)
 muh <- tapply(BigLucy$Taxes, BigLucy$Zone, mean)
 sigmah <- tapply(BigLucy$Taxes, BigLucy$Zone, sd)
 
+# Organizar BigLucy por Zona
 BigLucy <- BigLucy[order(BigLucy$Zone),]
 
+# Tamaños
 n_h <- ss4stm(Nh, muh, sigmah, DEFFh=1.4, conf = 0.95, rme = 0.05)$nh
 
-table(BigLucy$Zone)
-
-?sampling::strata
+# Tamaños muestra y factgores de expansión
 set.seed(100318)  
+estrato <- sampling::strata(data=BigLucy, stratanames="Zone", 
+                                   size=n_h, method="srswor", description=FALSE)
+muestra <- BigLucy[estrato$ID_unit,]  
+muestra <- sampling::getdata(BigLucy,estrato)
 
-indica_estrato <- sampling::strata(data=BigLucy, stratanames="Zone", size=n_h, method="srswor", description=FALSE)
+# Para Income
+# Variable agrupamiento Level y por el dominio ISO (no, yes)
+# Agregar los Nh a cada estrato
+Tamanos_Estrato <- as.data.frame(table(BigLucy$Zone))
+names(Tamanos_Estrato) <- c("Zone", "N_h")  
+muestra <- merge(muestra, Tamanos_Estrato)
 
-muestra_ESTMAS <- BigLucy[indica_estrato$ID_unit,]  
-muestra_ESTMAS <- sampling::getdata(BigLucy,indica_estrato) # construye las factores de expansi?n
+# Diseño de muestra
+diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
 
+# Muestra
+table(muestra$ISO,muestra$Level)
 
-#y:income
-#Variable agrupamiento Level y por el dominio ISO (no, yes)
-#agregar los Nh a cada estrato
-tamanosEstrato<- as.data.frame(table(BigLucy$Zone))  # convierte la tabla en una base
-names(tamanosEstrato) <- c("Zone", "N_h")  # le coloca estos nombres
-muestra_ESTMAS<- merge(muestra_ESTMAS, tamanosEstrato)
-
-tamanosmuestra<- as.data.frame(table(muestra_ESTMAS$Zone))  # convierte la tabla en una base
-names(tamanosmuestra) <- c("Zone", "n_h")  # le coloca estos nombres
-muestra_ESTMAS<- merge(muestra_ESTMAS, tamanosmuestra)
-
-
-head(muestra_ESTMAS)
-
-
-# Dise?o de muestra
-diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_ESTMAS)
-
-table(muestra_ESTMAS$Level)
-table(muestra_ESTMAS$ISO)
-
-table(muestra_ESTMAS$ISO,muestra_ESTMAS$Level)
+# Real
 table(BigLucy$ISO,BigLucy$Level)
-
-
-
-
 
 
 #Estimador Sint?tico
@@ -221,7 +211,6 @@ Ypron<- t(y_g * t(matrix(1,nrow = D,ncol = G)))
 N_dg <- table(BigLucy$ISO, BigLucy$Level)
 
 totalProm<-Ypron*N_dg
-
 
 YsinteticoxDominio <- rowSums(totalProm) #Estimaciones por dominio
 
