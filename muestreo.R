@@ -152,26 +152,26 @@ level_est_table <- data.frame(Level_est_mean, cv = cv_Level_est_mean)
 # 3. Diseño Estratificado ####
 #*****************************
 
-#**********************************************************
+#************************************************************
 # 3.a. Diseño estratificado estrato Zone, semilla=100318 ####
-#**********************************************************
+#************************************************************
 
 # Marco Muestral
+rm(list = ls())
 data("BigLucy")
 set.seed(100318)
 
 # Descripción Diseño Estratificado
-Nh <- summary(BigLucy$Zone)
-muh <- tapply(BigLucy$Taxes, BigLucy$Zone, mean)
-sigmah <- tapply(BigLucy$Taxes, BigLucy$Zone, sd)
+Nh <- table(BigLucy$Zone)
+muh <- aggregate(Taxes ~ Zone, FUN=mean, data=BigLucy)$Taxes
+sh <- aggregate(Taxes ~ Zone, FUN=sd, data=BigLucy)$Taxes
+conf <- 0.95
+rme <- 0.03
 
-# Organizar BigLucy por Zona
-BigLucy <- BigLucy[order(BigLucy$Zone),]
+n_h <- ss4stm(Nh, muh, sigmah=sh, DEFFh=1, conf=conf, rme=rme)$nh
+sum(n_h)
 
-# Tamaños
-n_h <- ss4stm(Nh, muh, sigmah, DEFFh=1.4, conf = 0.95, rme = 0.05)$nh
-
-# Tamaños muestra y factgores de expansión
+# Tamaños muestra y factores de expansión
 set.seed(100318)  
 estrato <- sampling::strata(data=BigLucy, stratanames="Zone", 
                                    size=n_h, method="srswor", description=FALSE)
@@ -181,9 +181,17 @@ muestra <- sampling::getdata(BigLucy,estrato)
 # Para Income
 # Variable agrupamiento Level y por el dominio ISO (no, yes)
 # Agregar los Nh a cada estrato
+
 Tamanos_Estrato <- as.data.frame(table(BigLucy$Zone))
 names(Tamanos_Estrato) <- c("Zone", "N_h")  
 muestra <- merge(muestra, Tamanos_Estrato)
+length(muestra$Zone)
+
+Tamanos_muestra<- as.data.frame(table(muestra$Zone))
+names(Tamanos_muestra) <- c("Zone", "n_h")
+muestra <- merge(muestra, Tamanos_muestra)
+length(muestra$Zone)
+
 
 # Diseño de muestra
 diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
@@ -194,98 +202,125 @@ table(muestra$ISO,muestra$Level)
 # Real
 table(BigLucy$ISO,BigLucy$Level)
 
+#******************************
+# 3.a. Estimador Sintetico ####
+#******************************
 
-#Estimador Sint?tico
-#variable de agrupaci?n Level (big, medium, small)
-#dominio ISO
+# Estimador Sintético Dominop: ISO 
+# Estimador Directo
 
-#Estimador Directo
-svyby(~Income, ~Level, diseno_ESTMAS, FUN = svymean)
+est_income_total <- svyby(~Income, ~Level, diseno_estra, FUN = svytotal)
+est_income_mean <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)
 
-#guardar en vector la segunda columna
-y_g <-svyby(~Income, ~Level, diseno_ESTMAS, FUN = svymean)[,2]
+# Estimador directo HT
+Ybarra_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,2]
 
-D<-length(unique(muestra_ESTMAS$ISO))
-G<-length(unique(muestra_ESTMAS$Level))
-Ypron<- t(y_g * t(matrix(1,nrow = D,ncol = G)))
+D <- length(unique(muestra$ISO))
+G <- length(unique(muestra$Level))
+Ybarra_pron <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
 N_dg <- table(BigLucy$ISO, BigLucy$Level)
+totalProm <- Ybarra_pron*N_dg
 
-totalProm<-Ypron*N_dg
+# Estimaciones por dominio
+Ysynth_d <- rowSums(totalProm) 
 
-YsinteticoxDominio <- rowSums(totalProm) #Estimaciones por dominio
+# Total poblacional por Dominios
+aggregate(Income ~ ISO, data = BigLucy, FUN = sum) 
+aggregate(Income ~ ISO, data = BigLucy, FUN = sum)$Income 
+# Total poblacional por Variable de agrupamiento
+agg_leve <- aggregate(Income ~ Level, data = BigLucy, FUN = sum) 
 
-aggregate(Income ~ ISO, data = BigLucy, FUN = sum) #total poblacional por Dominios
-aggregate(Income ~ Level, data = BigLucy, FUN = sum) #total poblacional por Variable de agrupamiento
+Estimador_Sintetico <- data.frame(ISO=names(totalProm[,1]), Big=totalProm[,1], 
+                                  Medium=totalProm[,2], Small=totalProm[,3],
+                                  Total=aggregate(Income ~ ISO, data = BigLucy, FUN = sum)$Income)
 
+total <- data.frame(ISO="Total", Big=agg_leve[1,2], Medium=agg_leve[1,2], Small=agg_leve[1,2], Total=sum(agg_leve[,2]))
 
+Estimador_Sinte <- rbind(Estimador_Sintetico, total)
 
-#Estimaci?n de la varianza
+#Estimación de la varianza
 
-VarY_g <-svyby(~Income, ~Level, diseno_ESTMAS, FUN = svymean)[,3]^2
-
-VarYpron<- t(VarY_g * t(matrix(1,nrow = D,ncol = G)))
+VarY_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,3]^2
+VarYpron <- t(VarY_g * t(matrix(1,nrow = D,ncol = G)))
 N_dg2 <- table(BigLucy$ISO, BigLucy$Level)^2
+A <- VarYpron*N_dg2
 
-A<- VarYpron*N_dg2
-VarYSintet_d <- rowSums(A) #estiamci?n por dominio
+#estiamción por dominio
+VarYSintet_d <- rowSums(A) 
 VarYSintet_d
-sqrt(VarYSintet_d)/YsinteticoxDominio*100
+sqrt(VarYSintet_d)/Ysynth_d*100
 
+Estimador_var_Sintetico <- data.frame(ISO=names(A[,1]), Big=A[,1], 
+                                  Medium=A[,2], Small=A[,3],
+                                  Total=VarYSintet_d)
 
-########### Estimador GREG
+var_total <- data.frame(ISO="Total", Big=sum(Estimador_var_Sintetico$Big), 
+                        Medium=sum(Estimador_var_Sintetico$Medium), 
+                        Small=sum(Estimador_var_Sintetico$Small), 
+                        Total=sum(Estimador_var_Sintetico$Total))
 
+Estimador_var_Sinte <- rbind(Estimador_Sintetico, total)
 
-muestra_ESTMAS$IsoSpam <- paste(muestra_ESTMAS$ISO,muestra_ESTMAS$SPAM, sep = "_")
-unique(muestra_ESTMAS$IsoSpam)
+Estimador_sd_Sinte <- data.frame(ISO=Estimador_var_Sinte[,1],
+                                 (sqrt(Estimador_var_Sinte[,c(2,3,4,5)])/Estimador_Sinte[,c(2,3,4,5)])*100)
+
+#*************************
+# 3.b. Estimador GREG ####
+#*************************
+
+muestra$IsoSpam <- paste(muestra$ISO,muestra$SPAM, sep = "_")
+unique(muestra$IsoSpam)
 
 BigLucy$IsoSpam <- paste(BigLucy$ISO,BigLucy$SPAM, sep = "_")
 unique(BigLucy$IsoSpam)
 
+# Calculo de FEXP
+muestra$fexp <- muestra$N_h/muestra$n_h
+  
+# Heterocedástico
+mod_GREG <- lm(Income ~ Taxes + Employees + Level, data=muestra,
+                 weights = muestra$fexp*(1/muestra$Employees))
 
-muestra_ESTMAS$fexp <- muestra_ESTMAS$N_h/muestra_ESTMAS$n_h
+summary(mod_GREG) 
 
-#HeterocedÃ¡stico
-modeloGREG <- lm(Income ~ Taxes + Employees + Level, data=muestra_ESTMAS,
-                 weights = muestra_ESTMAS$fexp*(1/muestra_ESTMAS$Employees))  
+e <- mod_GREG$residuals
 
-summary(modeloGREG) 
-
-e <- modeloGREG$residuals
 # Crear g
-modeloU <- lm(Income ~ Taxes + Employees + Level,
+mod_U <- lm(Income ~ Taxes + Employees + Level,
               data = BigLucy)
 
-X_U <-  model.matrix(modeloU) #MAtrix de dise?o
-X_s <- model.matrix(modeloGREG)
+X_U <-  model.matrix(mod_U) #MAtrix de dise?o
+X_s <- model.matrix(mod_GREG)
 
 # Dise?o de muestra
-diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_ESTMAS)
+diseno_estratificado <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
+fexp_k <- weights(diseno_estratificado) # 1/pi_k
 
-fexp_k <- weights(diseno_ESTMAS) # 1/pi_k
 # summary(pi_k)
 W <- diag(fexp_k)
-g <- rep(NA, nrow(muestra_ESTMAS))
+g <- rep(NA, nrow(muestra))
 
 
 # Dominio ISO - SPAM = "no_no"
 
 SumUd_X <- as.matrix(colSums(X_U[BigLucy$IsoSpam == "no_no", ]))
-SumSd_X <- as.matrix(colSums(X_s[muestra_ESTMAS$IsoSpam == "no_no", ]*
-                               fexp_k[muestra_ESTMAS$IsoSpam == "no_no"]))
+SumSd_X <- as.matrix(colSums(X_s[muestra$IsoSpam == "no_no", ]*
+                               fexp_k[muestra$IsoSpam == "no_no"]))
 
-z_dk <- as.numeric(muestra_ESTMAS$IsoSpam == "no_no")
-#i = 2
-for(i in 1:nrow(muestra_ESTMAS)){
+z_dk <- as.numeric(muestra$IsoSpam == "no_no")
+
+# i = 2
+for(i in 1:nrow(muestra)){
   g[i] <-   z_dk[i] + t(SumUd_X - SumSd_X) %*%
     solve(t(X_s) %*% W %*% X_s) %*% as.matrix(X_s[i,])
 }
 summary(g)
 
-yGreg_no_no <- sum(muestra_ESTMAS$Income *  g  * fexp_k)
+yGreg_no_no <- sum(muestra$Income *  g  * fexp_k)
 aggregate(Income ~ IsoSpam, FUN = sum, data = BigLucy)
 
-muestra_ESTMAS$U <- g * modeloGREG$residuals
-diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_ESTMAS)
+muestra$U <- g * mod_GREG$residuals
+diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
 
 svytotal(~U, diseno_ESTMAS)
 100 * svytotal(~U, diseno_ESTMAS) / yGreg_no_no
