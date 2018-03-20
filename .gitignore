@@ -7,7 +7,7 @@
 
 # Example code in package build process
 *-Ex.R
-diseño_JHON(Modificar).R
+*-diseño_JHON(Modificar).R
 
 # Output files from R CMD build
 /*.tar.gz
