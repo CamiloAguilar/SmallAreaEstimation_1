@@ -150,7 +150,17 @@ diseno <- svydesign(ids =~ Segments + ID, strata =~ estrato_segmento,
 Spam_Level_est <- svyby(~Income, ~Spam_Level, diseno, FUN=svytotal)
 Spam_Level_cv <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svytotal))
 
-Spam_Level_est_table <- data.frame(Spam_Level_est, cv = Spam_Level_cv)
+# Tabla resultados de estimación
+spam <- NULL
+level <- NULL
+p <- str_split(Spam_Level_est$Spam_Level, pattern = "_")
+for (i in 1:length(p)) {
+  spam <- c(spam, p[[i]][1])
+  level <- c(level, p[[i]][2])
+}
+Spam_Level_est_table <- data.frame(SPAM=spam, Level=level, Income=Spam_Level_est$Income, cv = Spam_Level_cv)
+Spam_Level_est_table <- dcast(Spam_Level_est_table, SPAM ~ Level, value.var = "Income")
+Spam_Level_est_table
 
 #*****************************************
 # 2.b. Estimación global por dominios #### 
