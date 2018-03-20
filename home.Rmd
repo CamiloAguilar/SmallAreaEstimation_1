@@ -19,17 +19,19 @@ writeLines(c(msj,"<p>Copyright &copy; All rights reserved.</p>"),fileConn)
 close(fileConn)
 ```
 
+<br/><br/>
+
 ## INTRODUCCIÓN
 
-En el siguiente documento se observa la aplicación de estimadores de muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos *BigLucy* del paquete de **R** *TeachingSampling* y un diseño muestral bietápico para el desarrollo de los dos primeros capitulos, en el tercero se realiza un diseño muestra estratificado de la variable *Zone*, con la semilla "100318". 
+El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener resultados inherentes a los ingresos (variable *Income*) de las empresa haciendo uso de diferentes variables auxiliares disponibles en los datos poblacionales. Dichas técnicas son; muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos *BigLucy* del paquete *TeachingSampling* de **R**. Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable *Zone*. 
 
-El objetivo del documento es desarrollar por diferentes métodos de muestreo estadístico las estimaciones por dominios utilizando variables auxiliares, globales y promedio de la vairbale *Income* = Ingresos.  
+Primero se calculan los estimadores de razón para la variables *Income* por el dominio *SPAM*, considerando como variables auxiliares *Taxes* y *Employees*, también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio *SPAM* y variable auxiliar *Level*, con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables *SPAM* e *ISO* como dominio). 
 
-Primero se realiza los estimadores de razón para la variables *Income* por el dominio *SPAM*, considerando como variables auxiliares *Taxes* y *Employees*, también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio *SPAM* y variable auxiliar *Level*, con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y homocedástico (considerando el cruce de las variables *SPAM* e *ISO* como dominio). 
+<br/><br/>
 
 ## 1. ESTIMADOR DE RAZÓN
 
-Se utiliza un diseño muestral bietápico para desarrollar una estimación de razón de la variable Income/Taxes e Income/Employees. Es decir, se puede determinar la participación de los impuestos sobre ingreso y un empleado cuanto ingreso generá.
+Se parte de un diseño muestral bietápico MAS-MAS para desarrollar la estimación de razón para variable 'Income' bajo las características auxiliares 'Taxes' y 'Employees'. Dicho de otro modo, se pretende determinar en un caso, la participación de los impuestos sobre el ingreso, y en el otro el aporte que tiene un empleado en el ingreso. Para los casos a continuación se supondrá que los dominos están definidos por la variable 'SPAM', la cual indica si una compañía los servicios de correo electrónico para realizar publicidad libre.
 
 ```{r libraries, include=FALSE}
 library(survey)
@@ -40,54 +42,73 @@ library(kableExtra)
 library(knitr)
 options(scipen = 999)
 
-mue <- readRDS("./data/muestra_2etapas.rds")
-muestra <- readRDS("./data/muestra_2etapas.rds")
-
 ```
 
-Se utiliza la muestra del archivo *muestra_2etapas.rds* y se asigna el nombre de "mue". Se encuentra en el siguiente enlace [GitHub](https://github.com/CamiloAguilar/SmallAreaEstimation_1). Con la muestra se calcula un diseño muestral con las siguientes caracteristicas:
+La muestra a utilizar se carga del archivo *muestra_2etapas.rds* el cuál se encuentra en el siguiente [enlace](https://github.com/CamiloAguilar/SmallAreaEstimation_1/raw/master/data/muestra_2Etapas.rds) para su descarga. Con dicha muestra se calcula un diseño muestral bajo las siguientes características:
 
 ```{r diseno, echo=TRUE}
+mue <- readRDS("./data/muestra_2etapas.rds")
 diseno <- svydesign(ids =~ Segments + ID, strata=~ estrato_segmento, fpc=~ N_h + Ni, data=mue)
 ```
 
-### 1.1. Estimador de razón por dominio *SPAM* con variable auxiliar *TAXES*
+<br/><br/>
 
-A continuación se muestra la estimación con variable auxiliar Taxes, los coeficientes de variación para ambas categorias de *SPAM* son aceptables (Aprox 5). 
+### 1.1. Estimador de razón por dominio bajo variable auxiliar *TAXES*
 
-- Para SPAM = "no" por cada 35.0 USD que se tienen de ingreso se paga 1 USD de impuestos.
-- Para SPAM = "yes" por cada 36.6 USD que se tienen de ingreso se paga 1 USD de impuestos.
+Las siguientes funciones detallan la estimación de razón para los dominios bajo la variable auxiliar Taxes. Se aprecia en este caso que los coeficientes de variación para ambas categorias de *SPAM* resultan ser aceptables. 
 
-```{r taxes, echo=TRUE}
+```{r taxes, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
 Rd_Income_Taxes <- svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio)
 cv_Rd_Income_Taxes <- cv(svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio))*100
 ```
 
-```{r taxes_1, echo=FALSE}
+En particular:
+
+- Para el dominio SPAM = "no", se observa que por cada $35.02$ $USD$ que se tienen de ingreso, se estima que las empresas pagan $1$ $USD$ de impuestos.
+- En el caso del dominio SPAM = "yes", por cada $36.64$ $USD$ que se tienen de ingreso, se estima que las empresas pagan $1$ $USD$ de impuestos.
+
+
+```{r taxes_1, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 Income_Taxes <- data.frame(Rd_Income_Taxes, cv.Income.Taxes=c(cv_Rd_Income_Taxes))
+rownames(Income_Taxes) <- NULL
 kable(Income_Taxes, "html") %>%
   kable_styling("striped", full_width = F, position = "center") %>%
   add_footnote(c("Estimación Income por SPAM con variable auxiliar Taxes"), notation = "number")
 
 ```
 
-### 1.2. Estimador de razón por dominio *SPAM* con variable auxiliar *EMPLOYEES*
+<br/><br/>
 
-A continuación se muestra la estimación con variable auxiliar Employees, se generá más ingreso por empleado para SPAM = "yes" aunque la diferencia no es grande apenas de 0.4 USD. Los coeficientes de variación para ambas categorias de *SPAM* son aceptables. Para "no" es alto con 6.7, pero la estimación para "yes" podría ser más acertada con un cv de 3.8. 
+### 1.2. Estimador de razón por dominio bajo variable auxiliar *EMPLOYEES*
 
-- Para SPAM = "no" un empleado generá 5.9 USD de ingreso.
-- Para SPAM = "yes" un empleado generá 6.3 USD de ingreso.
+A continuación se muestra la estimación con variable auxiliar 'Employees', dónde puede observarse que se el ingreso generado por cada empleado es prácticamente igual para los dos dominios, pues se detalla una diferencia de apenas $0.4$ $USD$. Los coeficientes de variación para ambas categorias de *SPAM* son aceptables. Para "no" es alto con 6.7, pero la estimación para "yes" podría ser más acertada con un cv de 3.8. 
 
 ```{r employees, echo=TRUE}
 Rd_Income_Employees <- svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio)
 cv_Rd_Income_Employees <- cv(svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio))*100
 ```
 
+En resumen se tiene que:
+
+- Para el dominio SPAM = "no", se estima que un empleado generaría $5.9$ $USD$ de ingreso.
+- Para el dominio SPAM = "yes", se estima que un empleado generaría $6.3$ $USD$ de ingreso.
+
+
 ```{r employees_1, echo=FALSE}
 Income_Employees <- data.frame(Rd_Income_Employees, cv.Income.Employees=c(cv_Rd_Income_Employees))
 kable(Income_Employees, "html") %>%
   kable_styling("striped", full_width = F, position = "center") %>%
   add_footnote(c("Estimación Income por SPAM con variable auxiliar Taxes"), notation = "number")
+
+```
+
+<br/><br/>
+
+### 1.3. Estimador de razón globales para *Taxes* y *Employees*
+
+Para el caso de la variable auxiliar 'Taxes', el estimador de razón está dado bajo la siguiente función:
+
+```{r ratio_global, echo=FALSE}
 
 ```
 
