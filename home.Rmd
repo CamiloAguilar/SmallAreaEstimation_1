@@ -21,7 +21,7 @@ close(fileConn)
 
 ## INTRODUCCIÓN
 
-En el siguiente documento se observa la aplicación de estimadores de razón, estimador de postestratificación, estimador sintético y estimador GREG  por dominios para muestreo estadístico. Se utiliza la base de datos *BigLucy* del paquete de **R** *TeachingSampling* y un diseño muestral bietápico para el desarrollo de los dos primeros capitulos, en el tercero se realiza un diseño muestra estratificado de la variable *Zone*, con la semilla "100318". 
+En el siguiente documento se observa la aplicación de estimadores de muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos *BigLucy* del paquete de **R** *TeachingSampling* y un diseño muestral bietápico para el desarrollo de los dos primeros capitulos, en el tercero se realiza un diseño muestra estratificado de la variable *Zone*, con la semilla "100318". 
 
 El objetivo del documento es desarrollar por diferentes métodos de muestreo estadístico las estimaciones por dominios utilizando variables auxiliares, globales y promedio de la vairbale *Income* = Ingresos.  
 

@@ -325,19 +325,19 @@ div.tocify {
 <li><strong>Alvaro Enrique Villaba Mendez</strong>, <a href="https://github.com/AlvaroVillalba/SmallAreaEstimation_1">GitHub</a></li>
 </ul>
 </div>
-<div id="introduccion" class="section level1">
-<h1>INTRODUCCIÓN</h1>
+<div id="introduccion" class="section level2">
+<h2>INTRODUCCIÓN</h2>
 <p>En el siguiente documento se observa la aplicación de estimadores de razón, estimador de postestratificación, estimador sintético y estimador GREG por dominios para muestreo estadístico. Se utiliza la base de datos <em>BigLucy</em> del paquete de <strong>R</strong> <em>TeachingSampling</em> y un diseño muestral bietápico para el desarrollo de los dos primeros capitulos, en el tercero se realiza un diseño muestra estratificado de la variable <em>Zone</em>, con la semilla “100318”.</p>
 <p>El objetivo del documento es desarrollar por diferentes métodos de muestreo estadístico las estimaciones por dominios utilizando variables auxiliares, globales y promedio de la vairbale <em>Income</em> = Ingresos.</p>
 <p>Primero se realiza los estimadores de razón para la variables <em>Income</em> por el dominio <em>SPAM</em>, considerando como variables auxiliares <em>Taxes</em> y <em>Employees</em>, también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio <em>SPAM</em> y variable auxiliar <em>Level</em>, con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y homocedástico (considerando el cruce de las variables <em>SPAM</em> e <em>ISO</em> como dominio).</p>
 </div>
-<div id="estimador-de-razon" class="section level1">
-<h1>1. ESTIMADOR DE RAZÓN</h1>
+<div id="estimador-de-razon" class="section level2">
+<h2>1. ESTIMADOR DE RAZÓN</h2>
 <p>Se utiliza un diseño muestral bietápico para desarrollar una estimación de razón de la variable Income/Taxes e Income/Employees. Es decir, se puede determinar la participación de los impuestos sobre ingreso y un empleado cuanto ingreso generá.</p>
 <p>Se utiliza la muestra del archivo <em>muestra_2etapas.rds</em> y se asigna el nombre de “mue”. Se encuentra en el siguiente enlace <a href="https://github.com/CamiloAguilar/SmallAreaEstimation_1">GitHub</a>. Con la muestra se calcula un diseño muestral con las siguientes caracteristicas:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">diseno &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids =</span><span class="op">~</span><span class="st"> </span>Segments <span class="op">+</span><span class="st"> </span>ID, <span class="dt">strata=</span><span class="op">~</span><span class="st"> </span>estrato_segmento, <span class="dt">fpc=</span><span class="op">~</span><span class="st"> </span>N_h <span class="op">+</span><span class="st"> </span>Ni, <span class="dt">data=</span>mue)</code></pre></div>
-<div id="estimador-de-razon-por-dominio-spam-con-variable-auxiliar-taxes" class="section level2">
-<h2>1.1. Estimador de razón por dominio <em>SPAM</em> con variable auxiliar <em>TAXES</em></h2>
+<div id="estimador-de-razon-por-dominio-spam-con-variable-auxiliar-taxes" class="section level3">
+<h3>1.1. Estimador de razón por dominio <em>SPAM</em> con variable auxiliar <em>TAXES</em></h3>
 <p>A continuación se muestra la estimación con variable auxiliar Taxes, los coeficientes de variación para ambas categorias de <em>SPAM</em> son aceptables (Aprox 5).</p>
 <ul>
 <li>Para SPAM = “no” por cada 35.0 USD que se tienen de ingreso se paga 1 USD de impuestos.</li>
@@ -397,6 +397,79 @@ yes
 </td>
 <td style="text-align:right;">
 5.042249
+</td>
+</tr>
+</tbody>
+<tfoot>
+<tr>
+<td style="padding: 0; border:0;" colspan="100%">
+<sup>1</sup> Estimación Income por SPAM con variable auxiliar Taxes
+</td>
+</tr>
+</tfoot>
+</table>
+</div>
+<div id="estimador-de-razon-por-dominio-spam-con-variable-auxiliar-employees" class="section level3">
+<h3>1.2. Estimador de razón por dominio <em>SPAM</em> con variable auxiliar <em>EMPLOYEES</em></h3>
+<p>A continuación se muestra la estimación con variable auxiliar Employees, se generá más ingreso por empleado para SPAM = “yes” aunque la diferencia no es grande apenas de 0.4 USD. Los coeficientes de variación para ambas categorias de <em>SPAM</em> son aceptables. Para “no” es alto con 6.7, pero la estimación para “yes” podría ser más acertada con un cv de 3.8.</p>
+<ul>
+<li>Para SPAM = “no” un empleado generá 5.9 USD de ingreso.</li>
+<li>Para SPAM = “yes” un empleado generá 6.3 USD de ingreso.</li>
+</ul>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Rd_Income_Employees &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Employees, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svyratio)
+cv_Rd_Income_Employees &lt;-<span class="st"> </span><span class="kw">cv</span>(<span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Employees, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svyratio))<span class="op">*</span><span class="dv">100</span></code></pre></div>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+SPAM
+</th>
+<th style="text-align:right;">
+Income.Employees
+</th>
+<th style="text-align:right;">
+se.Income.Employees
+</th>
+<th style="text-align:right;">
+cv.Income.Employees
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:right;">
+5.984623
+</td>
+<td style="text-align:right;">
+0.4037974
+</td>
+<td style="text-align:right;">
+6.747248
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:right;">
+6.347693
+</td>
+<td style="text-align:right;">
+0.2429265
+</td>
+<td style="text-align:right;">
+3.827005
 </td>
 </tr>
 </tbody>
