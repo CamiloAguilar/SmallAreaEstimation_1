@@ -124,7 +124,7 @@ as.data.frame(Media_IS_real)
 Income_global <- svymean(~Income, diseno)
 cv_Income_global <- cv(svymean(~Income, diseno))*100
 # Tabla
-mean_income <- data.frame(mean_Income_dominio, cv=cv_mean_Income_dominio)
+mean_income <- data.frame(Income_global, cv=cv_Income_global)
 global_mean_income <- data.frame(SPAM="Total",Income=as.data.frame(Income_global)$mean, 
                                  se=as.data.frame(Income_global)$Income, 
                                  cv=as.data.frame(cv_Income_global)$Income)

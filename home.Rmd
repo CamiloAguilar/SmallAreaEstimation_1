@@ -96,6 +96,9 @@ En resumen se tiene que:
 
 ```{r employees_1, echo=FALSE}
 Income_Employees <- data.frame(Rd_Income_Employees, cv.Income.Employees=c(cv_Rd_Income_Employees))
+names(Income_Employees) <- c("SPAM", "Income/Taxes", "se", "cv")
+rownames(Income_Employees) <- NULL
+
 kable(Income_Employees, "html") %>%
   kable_styling("striped", full_width = F, position = "center") %>%
   add_footnote(c("Estimación Income por SPAM con variable auxiliar Taxes"), notation = "number")
@@ -104,16 +107,283 @@ kable(Income_Employees, "html") %>%
 
 <br/><br/>
 
-### 1.3. Estimador de razón globales para *Taxes* y *Employees*
+### 1.3. Estimador de razón global para 'Taxes' y 'Employees'
 
-Para el caso de la variable auxiliar 'Taxes', el estimador de razón está dado bajo la siguiente función:
+* Para el caso de la variable auxiliar 'Taxes', el estimador de razón está dado bajo la siguiente función:
 
-```{r ratio_global, echo=FALSE}
+```{r ratio_global, echo=TRUE, message=TRUE, warning=FALSE, paged.print=FALSE}
+# Estimador de razón global para Taxes
+Rd_Income_Taxes_global <- svyratio(~Income, denominator=~Taxes, design =  diseno)
+# Coeficiente de variación
+cv_Income_Taxes_global <- cv(svyratio(~Income, denominator=~Taxes, design =  diseno))*100
+```
+
+Obteniendo la siguiente estimación:
+
+```{r ratio_table, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+Income_Taxes_global <- data.frame(Income.Taxes = Rd_Income_Taxes_global$ratio, 
+                                  se.Income.Taxes = Rd_Income_Taxes_global$var,
+                                  cv.Income.Taxes = cv_Income_Taxes_global)
+names(Income_Taxes_global) = c("Income/Taxes", "se", "cv")
+rownames(Income_Taxes_global) <- NULL
+
+kable(Income_Taxes_global, "html") %>%
+  kable_styling("striped", full_width = F, position = "center") 
+```
+
+Por lo que se espera que por cada $34.77$ USD de ingreso generado por una empresa, ésta pague $1$ USD por concepto de impuestos. Además podemos notar un coeficiente de variación aceptable
+
+<br/><br/>
+
+* En cuanto a la variable auxiliar 'Employees', la estimación estará dada por la función a continuación:
+
+```{r ratio_global2, echo=TRUE, message=TRUE, warning=FALSE, paged.print=FALSE}
+# Estimador de razón global para Taxes
+Rd_Income_Employees_global <- svyratio(~Income, denominator=~Employees, design =  diseno)
+# Coeficiente de variación
+cv_Income_Employees_global <- cv(svyratio(~Income, denominator=~Employees, design =  diseno))*100
+```
+
+Obteniendo la siguiente estimación:
+
+```{r ratio_table2, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+Income_Employees_global <- data.frame(Income.Employees = Rd_Income_Employees_global$ratio, 
+                                  se.Income.Employees = Rd_Income_Employees_global$var,
+                                  cv.Income.Employees = cv_Income_Employees_global)
+names(Income_Employees_global) = c("Income/Employees", "se", "cv")
+rownames(Income_Employees_global) <- NULL
+
+kable(Income_Employees_global, "html") %>%
+  kable_styling("striped", full_width = F, position = "center") 
+```
+
+Por lo que se espera que cada empleado representa un ingreso de $6.22$ USD. Puede notarse un coeficiente de variación aceptable.
+
+<br/><br/>
+
+### 1.4. Estimación del 'Income' promedio
+
+ * *Estimador del promedio para el dominio 'SPAM'*
+
+La aplicación del estimador para dicho dominio puede verse a continuación:
+
+```{r prom_dom, echo=TRUE}
+mean_Income_dominio <- svyby(~Income, ~SPAM, diseno, FUN=svymean)
+cv_mean_Income_dominio <- cv(svyby(~Income, ~SPAM, diseno, FUN=svymean))*100
+```
+
+Como puede notarse, la estimación indica que:
+
+a. Para el dominio SPAM="no", el ingreso promedio de las empresas estaría al rededor de $410.61$ USD. Sin embargo el coeficiente de variación se aprecia un poco alto.
+b. Para el dominio SPAM="yes", el ingreso promedio de las empresas estaría al rededor de $444.22$ USD. En este caso se aprecia un bajo coeficiente de variación en la estimación. 
+
+```{r prom_dom_table, echo=F}
+mean_Income_dominio$cv <- cv_mean_Income_dominio
+rownames(mean_Income_dominio) <- NULL
+
+kable(mean_Income_dominio, "html") %>%
+  kable_styling("striped", full_width = F, position = "center") 
 
 ```
 
+<br/>
+
+* *Estimador del promedio global*
+
+El cálculo del estimador del promedio de ingresos global está dado bajo la siguiente función:
+
+```{r prom_global, echo=TRUE}
+# Estimador del promedio global
+Income_global <- svymean(~Income, diseno)
+cv_Income_global <- cv(svymean(~Income, diseno))*100
+```
+
+A continuación puede notarse que:
+
+a. El ingreso medio global para cada empresa, se estima en $432.17$. Se muestra un buen coeficiente de variación. 
+
+```{r prom_global_table, echo=FALSE}
+#Tabla
+mean_income <- data.frame(Income_global, cv=cv_Income_global)
+names(mean_income) <- c("mean", "se", "cv")
+
+kable(mean_income, "html") %>%
+  kable_styling("striped", full_width = F, position = "center") 
+```
 
 
+<br/><br/>
+
+## 2. ESTIMADOR DE POSTESTRATIFICACIÓN POR DOMINIOS
+
+Como se mencionó al inicio del presente documento, la muestra a utilizar es la misma del literal anterior. Dicha muestra ha sido seleccionada bajo un diseño de estratificación bajo la variable 'Segments'. Durante la ejecución del presente numeral, la variable de posestratificación seleccionada es 'SPAM'.
+
+```{r muestra2, echo=TRUE}
+# Lectura de la muestra
+muestra <- readRDS("./data/muestra_2etapas.rds")
+```
+<br/><br/>
+
+### 2.1. Total 'Income' con variable auxiliar Level
+
+En este punto necesitamos estimar el 'Income' para el dominio de posestratificación bajo la variable auxiliar 'Level'. A efectos prácticos, ésta necesidad se traduce a realizar estimaciones bajo un dominio definido como el cruce entre el postestrato y la variable auxiliar, asi:
+
+```{r post1, echo=FALSE}
+muestra$Spam_Level <- paste(muestra$SPAM, muestra$Level, sep="_")
+```
+
+Como hemos añadido una nueva varible, resulta necesario redefinir el diseño:
+
+```{r post2, echo=TRUE}
+diseno <- svydesign(ids =~ Segments + ID, strata =~ estrato_segmento, 
+                    fpc =~ N_h + Ni, data = muestra)
+```
+
+Así entonces, el estimador de postestratificación estará dado por la siguiente función:
+
+```{r post3, echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+Spam_Level_est <- svyby(~Income, ~Spam_Level, diseno, FUN=svytotal)
+Spam_Level_cv <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svytotal))
+```
+
+cuyos resultados son agregados en la siguiente tabla:
+
+```{r post4, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+# Tabla resultados de estimación
+require(stringr)
+spam <- NULL
+level <- NULL
+p <- str_split(Spam_Level_est$Spam_Level, pattern = "_")
+for (i in 1:length(p)) {
+  spam <- c(spam, p[[i]][1])
+  level <- c(level, p[[i]][2])
+}
+
+require(reshape2)
+Spam_Level_est_table <- data.frame(SPAM=spam, Level=level, Income=Spam_Level_est$Income, cv = Spam_Level_cv)
+Spam_Level_est_table <- melt(Spam_Level_est_table, id.vars= c("SPAM", "Level"), 
+                             measure.vars = c("Income", "cv")) %>%
+                        dcast(SPAM ~ Level + variable, value.var = "value")
+
+kable(Spam_Level_est_table, "html") %>%
+  kable_styling("striped", full_width = F, position = "center") 
+
+```
+
+Nótese que los coeficientes de variación se observan bastante altos, por lo que el resultado de las estimaciones podría no ser tan acertado. 
+
+### 2.2. Estimación global por dominios
+
+Ahora queremos obtener una estimación del total de 'Income' para el dominio definido por la variable 'SPAM'.
+
+```{r post5, echo=TRUE}
+Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)
+cv_spam_est <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal))
+```
+
+cuyo resultado puede apreciarse en la siguiente tabla
+
+```{r post6, echo=FALSE}
+spam_est_table <- data.frame(Spam_est, cv = cv_spam_est)
+rownames(spam_est_table) <- NULL
+
+kable(spam_est_table, "html") %>%
+  kable_styling("striped", full_width = F, position = "center") 
+
+```
+
+En este caso se observa que los coeficientes de variación resultan ser mejores, si no se considera la variable auxiliar 'Level'.
+
+<br/><br/>
+
+### 2.3. Estimación del 'Income' promedio
+
+ * Postestratificado
+
+Para la estimación de del ingreso medio por empresa, considerando la variable de poestratificación "SPAM" y la variable auxiliar Level, se define el resultado bajo la siguiente función:
+
+```{r post7, echo=TRUE}
+Spam_Level_est_mean <- svyby(~Income, ~Spam_Level, diseno, FUN=svymean)
+cv_Spam_Level_mean <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svymean))
+```
+
+dónde el resultado puede apreciarse a continuación:
+
+```{r post8, echo=FALSE}
+Spam_Level_est_mean_table <- data.frame(Spam_Level_est_mean, cv = cv_Spam_Level_mean)
+
+# Tabla resultados de estimación
+spam <- NULL
+level <- NULL
+p <- str_split(Spam_Level_est_mean_table$Spam_Level, pattern = "_")
+for (i in 1:length(p)) {
+  spam <- c(spam, p[[i]][1])
+  level <- c(level, p[[i]][2])
+}
+Spam_Level_est_mean_table <- data.frame(SPAM=spam, Level=level, Income=Spam_Level_est_mean$Income, 
+                                        cv = cv_Spam_Level_mean)
+Spam_Level_est_mean_table <- melt(Spam_Level_est_mean_table, id.vars= c("SPAM", "Level"), 
+                             measure.vars = c("Income", "cv")) %>%
+                             dcast(SPAM ~ Level + variable, value.var = "value")
+
+kable(Spam_Level_est_mean_table, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
+```
+
+Nótese que en general el coeficiente de variación muestra un ajuste bueno de las estimaciones.
+
+<br/>
+
+ * Global
+
+La estimación del promedio global del ingreso por empresa, está dado por la siguiente función:
+
+```{r post9, echo=TRUE}
+Spam_est_mean <- svyby(~Income, ~SPAM, diseno, FUN=svymean)
+cv_spam_est_mean <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svymean))
+```
+
+cuyos resultados pueden verse en la siguiente tabla:
+
+```{r post10, echo=FALSE}
+# Definición de tabla de resultados
+spam_est_table_mean <- data.frame(Spam_est_mean, cv = cv_spam_est_mean)
+rownames(spam_est_table_mean) <- NULL
+
+kable(spam_est_table_mean, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
+```
+
+En general la estimación indica que las esmpresas que hacen uso de publicidad masiva mediante el uso de correo electrónico, tienen un ingreso promedio superior que aquellas que no lo hacen. El coeficiente de variación para el dominio SPAM='no' resulta relativamente alto, por lo que su estimación podría no ser suficientemente confiable.
 
 
+<br/><br/>
+
+## 3. ESTIMADORES SINTÉTICO Y GREG
+
+Para la ejecución del presente numeral, la cual pretende realizar estimaciones de los ingresos para las empresas bajo ciertas condiciones y haciendo uso de estimación sintética y de regreción, definiremos una nueva muestra sobre la población de estudio definida por los datos contenido en la base de datos 'BigLucy'.
+
+ * Marco muestral estratificado
+
+A continuación....
+
+```{r describe_diseno, echo=TRUE}
+# Marco Muestral
+data("BigLucy")
+set.seed(100318)
+
+# Descripción Diseño Estratificado
+Nh <- table(BigLucy$Zone)
+muh <- aggregate(Taxes ~ Zone, FUN=mean, data=BigLucy)$Taxes
+sh <- aggregate(Taxes ~ Zone, FUN=sd, data=BigLucy)$Taxes
+conf <- 0.95
+rme <- 0.03
+```
+
+... se selecciona tamaño de menstrua...
+
+```{r tamano, echo=TRUE}
+n_h <- ss4stm(Nh, muh, sigmah=sh, DEFFh=1, conf=conf, rme=rme)$nh
+sum(n_h)
+```
 
