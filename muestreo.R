@@ -4,6 +4,8 @@
 
 library(survey)
 library(dplyr)
+library(reshape2)
+library(stringr)
 library(TeachingSampling)
 library(samplesize4surveys)
 options(scipen = 999)
@@ -17,7 +19,7 @@ mue <- readRDS("./data/muestra_2etapas.rds")
 muestra <- readRDS("./data/muestra_2etapas.rds")
 sum(mue$fexp) # N gorro
 
-# Real de BigLucy
+# Base poblacional de BigLucy
 data("BigLucy"); nrow(BigLucy)
 mean(BigLucy$Income)
 
@@ -31,11 +33,19 @@ diseno <- svydesign(ids =~ Segments + ID, strata=~ estrato_segmento, fpc=~ N_h +
 # Estimador de razon de dominios --> dominio=SPAM
 
 # Variable auxiliar Taxes
-Rd_Income_Taxes <- svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio)
+(Rd_Income_Taxes <- svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio))
 # Coeficiente de variación
-cv_Rd_Income_Taxes <- cv(svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio))*100
+(cv_Rd_Income_Taxes <- cv(svyby(~Income, denominator=~Taxes, ~SPAM, diseno, FUN=svyratio))*100)
 # Tabla con el coeficiente
-Income_Taxes <- data.frame(Rd_Income_Taxes, cv.Income.Taxes=c(cv_Rd_Income_Taxes))
+(Income_Taxes <- data.frame(Rd_Income_Taxes, cv.Income.Taxes=c(cv_Rd_Income_Taxes)))
+
+# Ratio real para Income/Taxes por dominios en Biglucy
+Rd_IT_real <- BigLucy %>% 
+              group_by(SPAM) %>%
+              summarise(Income=sum(Income), Taxes=sum(Taxes)) %>%
+              mutate(Ratio=Income/Taxes) %>%
+              select(-(Income), -(Taxes))
+as.data.frame(Rd_IT_real)
 
 #********************************************
 # 1.b. Estimador de razón para Employees #### 
@@ -44,59 +54,89 @@ Income_Taxes <- data.frame(Rd_Income_Taxes, cv.Income.Taxes=c(cv_Rd_Income_Taxes
 # Estimador de razon de dominios --> dominio=SPAM
 
 # Variable auxiliar Employees
-Rd_Income_Employees <- svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio)
+(Rd_Income_Employees <- svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio))
 # Coeficiente de variación
-cv_Rd_Income_Employees <- cv(svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio))*100
+(cv_Rd_Income_Employees <- cv(svyby(~Income, denominator=~Employees, ~SPAM, diseno, FUN=svyratio))*100)
 # Tabla con el coeficiente
-Income_Employees <- data.frame(Rd_Income_Employees, cv.Income.Employees=c(cv_Rd_Income_Employees))
+(Income_Employees <- data.frame(Rd_Income_Employees, cv.Income.Employees=c(cv_Rd_Income_Employees)))
+
+# Ratio real para Income/Employees por dominios en Biglucy
+Rd_IE_real <- BigLucy %>% 
+              group_by(SPAM) %>%
+              summarise(Income=sum(Income), Employees=sum(Employees)) %>%
+              mutate(Ratio=Income/Employees) %>%
+              select(-(Income), -(Employees))
+as.data.frame(Rd_IE_real)
 
 #*************************************************************
 # 1.c. Estimador de razón globales para Taxes & Employees #### 
 #*************************************************************
 
+#************
 # TAXES
+#************
 # Estimador de razón global para Taxes
-Rd_Income_Taxes_global <- svyratio(~Income, denominator=~Taxes, design =  diseno)
+(Rd_Income_Taxes_global <- svyratio(~Income, denominator=~Taxes, design =  diseno))
 # Coeficiente de variación
-cv_Income_Taxes_global <- cv(svyratio(~Income, denominator=~Taxes, design =  diseno))*100
+(cv_Income_Taxes_global <- cv(svyratio(~Income, denominator=~Taxes, design =  diseno))*100)
 # Tabla
 Income_Taxes_global <- data.frame(Income.Taxes = Rd_Income_Taxes_global$ratio, 
                                   se.Income.Taxes = Rd_Income_Taxes_global$var,
                                   cv.Income.Taxes = cv_Income_Taxes_global)
 names(Income_Taxes_global) = c("Income.Taxes", "se.Income.Taxes", "cv.Income.Taxes")
 
+# Ratio global real para Income/Taxes 
+(Rd_IT_real_global <- sum(BigLucy$Income)/sum(BigLucy$Taxes))
+
+#************
 # EMPLOYEES
+#************
 # Estimador de razón global para Taxes
-Rd_Income_Employees_global <- svyratio(~Income, denominator=~Employees, design =  diseno)
+(Rd_Income_Employees_global <- svyratio(~Income, denominator=~Employees, design =  diseno))
 # Coeficiente de variación
-cv_Income_Employees_global <- cv(svyratio(~Income, denominator=~Employees, design =  diseno))*100
+(cv_Income_Employees_global <- cv(svyratio(~Income, denominator=~Employees, design =  diseno))*100)
 # Tabla
 Income_Employees_global <- data.frame(Income.Employees = Rd_Income_Employees_global$ratio, 
                                   se.Income.Employees = Rd_Income_Employees_global$var,
                                   cv.Income.Employees = cv_Income_Employees_global)
 names(Income_Employees_global) = c("Income.Employees", "se.Income.Employees", "cv.Income.Employees")
 
+# Ratio global real para Income/Employees 
+(Rd_IE_real_global <- sum(BigLucy$Income)/sum(BigLucy$Employees))
+
+
 #****************************************************
-# 1.d. Estimador promedio para Taxes & Employees #### 
+# 1.d. Estimador del Income promedio #### 
 #****************************************************
 
-# Estimador promedio para promedio por dominio=SPAM
-mean_Income_dominio <- svyby(~Income, ~SPAM, diseno, FUN=svymean)
-cv_mean_Income_dominio <- cv(svyby(~Income, ~SPAM, diseno, FUN=svymean))*100
-# Estimador promedio global
+# Estimador del promedio por dominio=SPAM
+(mean_Income_dominio <- svyby(~Income, ~SPAM, diseno, FUN=svymean))
+(cv_mean_Income_dominio <- cv(svyby(~Income, ~SPAM, diseno, FUN=svymean))*100)
+# Promedio real por dominio
+Media_IS_real <- BigLucy %>% 
+                 group_by(SPAM) %>%
+                 summarise(Income=sum(Income), Empresas=n()) %>%
+                 mutate(Income_promedio=Income/Empresas) %>%
+                 select(-(Income), -(Empresas))
+as.data.frame(Media_IS_real)
+
+# Estimador del promedio global
 Income_global <- svymean(~Income, diseno)
 cv_Income_global <- cv(svymean(~Income, diseno))*100
 # Tabla
-mean_income <- data.frame(mean_Income_dominio, cv=cv_mean_Income_dominio)
+mean_income <- data.frame(Income_global, cv=cv_Income_global)
 global_mean_income <- data.frame(SPAM="Total",Income=as.data.frame(Income_global)$mean, 
                                  se=as.data.frame(Income_global)$Income, 
                                  cv=as.data.frame(cv_Income_global)$Income)
 Mean_Income <- rbind(mean_income, global_mean_income)
+# Promedio global real
+sum(BigLucy$Income)/nrow(BigLucy)
 
-#****************************************
-# 2. Total Income posestratificación #### 
-#****************************************
+#******************************************************
+# 2. Estimador de postestratificación por dominios #### 
+#******************************************************
 
+# Lectura de los datos de la muestra seleccionada
 muestra <- readRDS("./data/muestra_2etapas.rds")
 
 #**********************************************
@@ -112,41 +152,113 @@ diseno <- svydesign(ids =~ Segments + ID, strata =~ estrato_segmento,
 Spam_Level_est <- svyby(~Income, ~Spam_Level, diseno, FUN=svytotal)
 Spam_Level_cv <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svytotal))
 
-Spam_Level_est_table <- data.frame(Spam_Level_est, cv = Spam_Level_cv)
+# Tabla resultados de estimación
+spam <- NULL
+level <- NULL
+p <- str_split(Spam_Level_est$Spam_Level, pattern = "_")
+for (i in 1:length(p)) {
+  spam <- c(spam, p[[i]][1])
+  level <- c(level, p[[i]][2])
+}
+Spam_Level_est_table <- data.frame(SPAM=spam, Level=level, Income=Spam_Level_est$Income, cv = Spam_Level_cv)
+Spam_Level_est_table <- melt(Spam_Level_est_table, id.vars= c("SPAM", "Level"), 
+                             measure.vars = c("Income", "cv")) %>%
+                        dcast(SPAM ~ Level + variable, value.var = "value")
+Spam_Level_est_table
+
+# Resultados poblacionales
+Spam_Level_real_table <- BigLucy %>%
+                         group_by(SPAM, Level) %>%
+                         summarise(Income=sum(Income)) %>%
+                         dcast(SPAM ~ Level, value.var = "Income")
+Spam_Level_real_table    
 
 #*****************************************
 # 2.b. Estimación global por dominios #### 
 #*****************************************
 
+#**********
 # SPAM
-Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)
-cv_spam_est <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)) 
+#**********
+(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal))
+(cv_spam_est <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svytotal)))
 spam_est_table <- data.frame(Spam_est, cv = cv_spam_est)
+# Resultado poblacional
+Spam_real <- BigLucy %>%
+             group_by(SPAM) %>%
+             summarise(Total_Income=sum(Income))
+data.frame(Spam_real)
 
+#**********
 # Level
-Level_est <- svyby(~Income, ~Level, diseno, FUN=svytotal)
-cv_Level_est <- 100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svytotal)) 
+#**********
+(Level_est <- svyby(~Income, ~Level, diseno, FUN=svytotal))
+(cv_Level_est <- 100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svytotal)))
 level_est_table <- data.frame(Level_est, cv = cv_Level_est)
+# Resultado poblacional
+Level_est <- BigLucy %>%
+             group_by(Level) %>%
+             summarise(Total_Income=sum(Income))
+data.frame(Level_est)
+
 
 #*********************************
 # 2c. Estimación del promedio ####
 #*********************************
 
+#**************
 # Promedio
-Spam_Level_est_mean <- svyby(~Income, ~Spam_Level, diseno, FUN=svymean)
-cv_Spam_Level_mean <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svymean))
+#**************
+(Spam_Level_est_mean <- svyby(~Income, ~Spam_Level, diseno, FUN=svymean))
+(cv_Spam_Level_mean <- 100 * cv(svyby(~Income, ~Spam_Level, diseno, FUN=svymean)))
 Spam_Level_est_mean_table <- data.frame(Spam_Level_est_mean, cv = cv_Spam_Level_mean)
 
+# Tabla resultados de estimación
+spam <- NULL
+level <- NULL
+p <- str_split(Spam_Level_est_mean_table$Spam_Level, pattern = "_")
+for (i in 1:length(p)) {
+  spam <- c(spam, p[[i]][1])
+  level <- c(level, p[[i]][2])
+}
+Spam_Level_est_mean_table <- data.frame(SPAM=spam, Level=level, Income=Spam_Level_est_mean$Income, 
+                                        cv = cv_Spam_Level_mean)
+Spam_Level_est_mean_table <- melt(Spam_Level_est_mean_table, id.vars= c("SPAM", "Level"), 
+                             measure.vars = c("Income", "cv")) %>%
+                             dcast(SPAM ~ Level + variable, value.var = "value")
+Spam_Level_est_mean_table
+
+# Resultados poblacionales
+Spam_Level_real_mean_table <- BigLucy %>%
+                              group_by(SPAM, Level) %>%
+                              summarise(Income_mean=mean(Income)) %>%
+                              dcast(SPAM ~ Level, value.var = "Income_mean")
+Spam_Level_real_mean_table    
+
+
+#**************
 # Global
+#**************
 # SPAM
-Spam_est_mean <- svyby(~Income, ~SPAM, diseno, FUN=svymean)
-cv_spam_est_mean <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svymean)) 
-spam_est_table_mean <- data.frame(Spam_est_mean, cv = cv_spam_est_mean)
+(Spam_est_mean <- svyby(~Income, ~SPAM, diseno, FUN=svymean))
+(cv_spam_est_mean <- 100 * cv(Spam_est <- svyby(~Income, ~SPAM, diseno, FUN=svymean)))
+(spam_est_table_mean <- data.frame(Spam_est_mean, cv = cv_spam_est_mean))
+# SPAM poblacional
+Spam_real_mean <- BigLucy %>%
+                  group_by(SPAM) %>%
+                  summarise(Income_mean=mean(Income))
+data.frame(Spam_real_mean)
 
 # Level
-Level_est_mean <- svyby(~Income, ~Level, diseno, FUN=svymean)
-cv_Level_est_mean <- 100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svymean)) 
-level_est_table <- data.frame(Level_est_mean, cv = cv_Level_est_mean)
+(Level_est_mean <- svyby(~Income, ~Level, diseno, FUN=svymean))
+(cv_Level_est_mean <- 100 * cv(Spam_est <- svyby(~Income, ~Level, diseno, FUN=svymean)))
+(level_est_table <- data.frame(Level_est_mean, cv = cv_Level_est_mean))
+# Level poblacional
+Level_real_mean <- BigLucy %>%
+                   group_by(Level) %>%
+                   summarise(Income_mean=mean(Income))
+data.frame(Level_real_mean)
+
 
 #*****************************
 # 3. Diseño Estratificado ####
@@ -173,7 +285,7 @@ sum(n_h)
 # Tamaños muestra y factores de expansión
 set.seed(100318)  
 estrato <- sampling::strata(data=BigLucy, stratanames="Zone", 
-                                   size=n_h, method="srswor", description=FALSE)
+                            size=n_h, method="srswor", description=FALSE)
 muestra_3 <- BigLucy[estrato$ID_unit,]  
 muestra_3 <- sampling::getdata(BigLucy,estrato)
 
@@ -183,67 +295,75 @@ muestra_3 <- sampling::getdata(BigLucy,estrato)
 
 Tamanos_Estrato <- as.data.frame(table(BigLucy$Zone))
 names(Tamanos_Estrato) <- c("Zone", "N_h")  
-muestra <- merge(muestra_3, Tamanos_Estrato)
+muestra_3 <- merge(muestra_3, Tamanos_Estrato)
 length(muestra_3$Zone)
 
 Tamanos_muestra<- as.data.frame(table(muestra$Zone))
 names(Tamanos_muestra) <- c("Zone", "n_h")
-muestra <- merge(muestra_3, Tamanos_muestra)
+muestra_3 <- merge(muestra_3, Tamanos_muestra)
 length(muestra_3$Zone)
+head(muestra_3)
 
 # Diseño de muestra
 diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
 
-# Muestra
-table(muestra_3$ISO,muestra$Level)
+# Tamaños de Muestra por ISO y Level
+table(muestra_3$ISO,muestra_3$Level)
 
-# Real
+# Número de empresas por ISO y Level
 table(BigLucy$ISO,BigLucy$Level)
 
 #******************************
-# 3.a. Estimador Sintetico ####
+# 3a. Estimador Sintético ####
 #******************************
+# Variable de agrupación: Level (Big, Medium, Small)
+# Dominio: ISO
 
-# Estimador Sintético Dominop: ISO 
 # Estimador Directo
-
 est_income_total <- svyby(~Income, ~Level, diseno_estra, FUN = svytotal)
 est_income_mean <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)
 
 # Estimador directo HT
 Ybarra_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,2]
 
-D <- length(unique(muestra$ISO))
-G <- length(unique(muestra$Level))
-Ybarra_pron <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
+D <- length(unique(muestra_3$ISO))
+G <- length(unique(muestra_3$Level))
+Ybarra_total <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
 N_dg <- table(BigLucy$ISO, BigLucy$Level)
-totalProm <- Ybarra_pron*N_dg
+total_Income <- Ybarra_total*N_dg
 
 # Estimaciones por dominio
-Ysynth_d <- rowSums(totalProm) 
+Ysynth_d <- rowSums(total_Income) 
 
 # Total poblacional por Dominios
-aggregate(Income ~ ISO, data = BigLucy, FUN = sum) 
-aggregate(Income ~ ISO, data = BigLucy, FUN = sum)$Income 
+agg_ISO <- BigLucy %>% group_by(ISO) %>% summarise(Income_total=sum(Income))
+
 # Total poblacional por Variable de agrupamiento
-agg_leve <- aggregate(Income ~ Level, data = BigLucy, FUN = sum) 
+agg_leve <- BigLucy %>% group_by(Level) %>% summarise(Income_total=sum(Income))
 
-Estimador_Sintetico <- data.frame(ISO=names(totalProm[,1]), Big=totalProm[,1], 
-                                  Medium=totalProm[,2], Small=totalProm[,3],
-                                  Total=aggregate(Income ~ ISO, data = BigLucy, FUN = sum)$Income)
+# Estimador sintético  
+Estimador_Sintetico <- data.frame(ISO=names(total_Income[,1]), Big=total_Income[,1], 
+                                  Medium=total_Income[,2], Small=total_Income[,3],
+                                  Total_poblacional=agg_ISO$Income_total)
 
-total <- data.frame(ISO="Total", Big=agg_leve[1,2], Medium=agg_leve[1,2], Small=agg_leve[1,2], Total=sum(agg_leve[,2]))
+total <- data.frame(ISO="Total_poblacional", Big=agg_leve$Income_total[1], Medium=agg_leve$Income_total[2], 
+                    Small=agg_leve$Income_total[3], Total_poblacional=sum(agg_leve$Income_total))
+#names(total) <- names(Estimador_Sintetico)
 
 Estimador_Sinte <- rbind(Estimador_Sintetico, total)
+rownames(Estimador_Sinte)<-NULL
+Estimador_Sinte
 
+
+#***************************
 #Estimación de la varianza
-
-VarY_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,3]^2
-VarYpron <- t(VarY_g * t(matrix(1,nrow = D,ncol = G)))
+#***************************
+VarY_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,3]^2 #Varianza por Level
+VarYtotal <- t(VarY_g * t(matrix(1,nrow = D,ncol = G)))
 N_dg2 <- table(BigLucy$ISO, BigLucy$Level)^2
-A <- VarYpron*N_dg2
+A <- VarYtotal*N_dg2
 
-#estiamción por dominio
+# Varianza por dominio
 VarYSintet_d <- rowSums(A) 
 VarYSintet_d
 sqrt(VarYSintet_d)/Ysynth_d*100
@@ -252,40 +372,42 @@ Estimador_var_Sintetico <- data.frame(ISO=names(A[,1]), Big=A[,1],
                                   Medium=A[,2], Small=A[,3],
                                   Total=VarYSintet_d)
 
-var_total <- data.frame(ISO="Total", Big=sum(Estimador_var_Sintetico$Big), 
-                        Medium=sum(Estimador_var_Sintetico$Medium), 
-                        Small=sum(Estimador_var_Sintetico$Small), 
-                        Total=sum(Estimador_var_Sintetico$Total))
+var_total <- data.frame(ISO="Total", Big=sum(Estimador_var_Sintetico$Big, na.rm = T), 
+                        Medium=sum(Estimador_var_Sintetico$Medium, na.rm = T), 
+                        Small=sum(Estimador_var_Sintetico$Small, na.rm = T), 
+                        Total=sum(Estimador_var_Sintetico$Total, na.rm = T))
 
 Estimador_var_Sinte <- rbind(Estimador_Sintetico, total)
 
 Estimador_sd_Sinte <- data.frame(ISO=Estimador_var_Sinte[,1],
                                  (sqrt(Estimador_var_Sinte[,c(2,3,4,5)])/Estimador_Sinte[,c(2,3,4,5)])*100)
+Estimador_sd_Sinte
+
 
 #*************************
 # 3.b. Estimador GREG ####
 #*************************
 
-muestra$IsoSpam <- paste(muestra$ISO,muestra$SPAM, sep = "_")
-unique(muestra$IsoSpam)
+muestra_3$ISO_SPAM <- paste(muestra_3$ISO, muestra_3$SPAM, sep = "_")
+table(muestra_3$ISO_SPAM)
 
-BigLucy$IsoSpam <- paste(BigLucy$ISO,BigLucy$SPAM, sep = "_")
-unique(BigLucy$IsoSpam)
+BigLucy$ISO_SPAM <- paste(BigLucy$ISO, BigLucy$SPAM, sep = "_")
+table(BigLucy$ISO_SPAM)
 
 # Calculo de FEXP
-muestra$fexp <- muestra$N_h/muestra$n_h
-  
-# Heterocedástico
-mod_GREG <- lm(Income ~ Taxes + Employees + Level, data=muestra,
-                 weights = muestra$fexp*(1/muestra$Employees))
+#muestra_3$fexp <- muestra_3$N_h/muestra_3$n_h
+muestra_3$fexp <-weights(diseno_estra)
 
+#*****************************************  
+# Modelo Heterocedástico
+#*****************************************
+mod_GREG <- lm(Income ~ Level + Employees + Taxes, data=muestra_3, 
+               weights = muestra_3$fexp*(1/muestra_3$Employees))
 summary(mod_GREG) 
-
 e <- mod_GREG$residuals
 
 # Crear g
-mod_U <- lm(Income ~ Taxes + Employees + Level,
-              data = BigLucy)
+mod_U <- lm(Income ~ Level + Employees + Taxes, data = BigLucy)
 
 X_U <-  model.matrix(mod_U) #MAtrix de dise?o
 X_s <- model.matrix(mod_GREG)
