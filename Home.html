@@ -328,13 +328,13 @@ div.tocify {
 </div>
 <div id="introduccion" class="section level2">
 <h2>INTRODUCCIÓN</h2>
-<p>El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener resultados inherentes a los ingresos (variable <em>Income</em>) de las empresa haciendo uso de diferentes variables auxiliares disponibles en los datos poblacionales. Dichas técnicas son; muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos <em>BigLucy</em> del paquete <em>TeachingSampling</em> de <strong>R</strong>. Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable <em>Zone</em>.</p>
-<p>Primero se calculan los estimadores de razón para la variables <em>Income</em> por el dominio <em>SPAM</em>, considerando como variables auxiliares <em>Taxes</em> y <em>Employees</em>, también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio <em>SPAM</em> y variable auxiliar <em>Level</em>, con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables <em>SPAM</em> e <em>ISO</em> como dominio).</p>
+<p>El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener los ingresos (variable <a href>Income</a> de las empresa utilizando diferentes variables auxiliares disponibles en los datos poblacionales. Las técnicas son: muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos <a href>BigLucy</a> del paquete <a href>TeachingSampling</a> de <a href>R</a>. Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable <a href>Zone</a>.</p>
+<p>Primero se calculan los estimadores de razón para la variables ‘Income’ por el dominio ‘SPAM’, considerando como variables auxiliares ‘Taxes’ y ‘Employees’, también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio ‘SPAM’ y variable auxiliar ‘Level’, con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables ‘SPAM’ e ‘ISO’ como dominio).</p>
 <p><br /><br /></p>
 </div>
 <div id="estimador-de-razon" class="section level2">
 <h2>1. ESTIMADOR DE RAZÓN</h2>
-<p>Se parte de un diseño muestral bietápico MAS-MAS para desarrollar la estimación de razón para variable ‘Income’ bajo las características auxiliares ‘Taxes’ y ‘Employees’. Dicho de otro modo, se pretende determinar en un caso, la participación de los impuestos sobre el ingreso, y en el otro el aporte que tiene un empleado en el ingreso. Para los casos a continuación se supondrá que los dominos están definidos por la variable ‘SPAM’, la cual indica si una compañía los servicios de correo electrónico para realizar publicidad libre.</p>
+<p>Se parte de un diseño muestral bietápico MAS-MAS para desarrollar la estimación de razón para variable ‘Income’ bajo las características auxiliares ‘Taxes’ y ‘Employees’. Se determina la participación de los impuestos sobre el ingreso y el aporte que tiene un empleado en el ingreso. Para los casos a continuación se supondrá que los dominos están definidos por la variable ‘SPAM’, la cual indica si una compañía los servicios de correo electrónico para realizar publicidad libre.</p>
 <p>La muestra a utilizar se carga del archivo <em>muestra_2etapas.rds</em> el cuál se encuentra en el siguiente <a href="https://github.com/CamiloAguilar/SmallAreaEstimation_1/raw/master/data/muestra_2Etapas.rds">enlace</a> para su descarga. Con dicha muestra se calcula un diseño muestral bajo las siguientes características:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mue &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span class="st">&quot;./data/muestra_2etapas.rds&quot;</span>)
 diseno &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids =</span><span class="op">~</span><span class="st"> </span>Segments <span class="op">+</span><span class="st"> </span>ID, <span class="dt">strata=</span><span class="op">~</span><span class="st"> </span>estrato_segmento, <span class="dt">fpc=</span><span class="op">~</span><span class="st"> </span>N_h <span class="op">+</span><span class="st"> </span>Ni, <span class="dt">data=</span>mue)</code></pre></div>
@@ -344,10 +344,10 @@ diseno &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span cla
 <p>Las siguientes funciones detallan la estimación de razón para los dominios bajo la variable auxiliar Taxes. Se aprecia en este caso que los coeficientes de variación para ambas categorias de <em>SPAM</em> resultan ser aceptables.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Rd_Income_Taxes &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Taxes, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svyratio)
 cv_Rd_Income_Taxes &lt;-<span class="st"> </span><span class="kw">cv</span>(<span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Taxes, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svyratio))<span class="op">*</span><span class="dv">100</span></code></pre></div>
-<p>En particular:</p>
+<p>En resumen se tiene que:</p>
 <ul>
-<li>Para el dominio SPAM = “no”, se observa que por cada <span class="math inline">\(35.02\)</span> <span class="math inline">\(USD\)</span> que se tienen de ingreso, se estima que las empresas pagan <span class="math inline">\(1\)</span> <span class="math inline">\(USD\)</span> de impuestos.</li>
-<li>En el caso del dominio SPAM = “yes”, por cada <span class="math inline">\(36.64\)</span> <span class="math inline">\(USD\)</span> que se tienen de ingreso, se estima que las empresas pagan <span class="math inline">\(1\)</span> <span class="math inline">\(USD\)</span> de impuestos.</li>
+<li>Para el dominio SPAM = “no”, se estima por cada <strong>35.02 USD</strong> que se tienen de ingreso las empresas pagan <strong>1 USD</strong> de impuestos.</li>
+<li>En el caso del dominio SPAM = “yes”, por cada <strong>34.64 USD</strong> que se tienen de ingreso las empresas pagan <strong>1 USD</strong> de impuestos.</li>
 </ul>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
@@ -408,13 +408,13 @@ yes
 </div>
 <div id="estimador-de-razon-por-dominio-bajo-variable-auxiliar-employees" class="section level3">
 <h3>1.2. Estimador de razón por dominio bajo variable auxiliar <em>EMPLOYEES</em></h3>
-<p>A continuación se muestra la estimación con variable auxiliar ‘Employees’, dónde puede observarse que se el ingreso generado por cada empleado es prácticamente igual para los dos dominios, pues se detalla una diferencia de apenas <span class="math inline">\(0.4\)</span> <span class="math inline">\(USD\)</span>. Los coeficientes de variación para ambas categorias de <em>SPAM</em> son aceptables. Para “no” es alto con 6.7, pero la estimación para “yes” podría ser más acertada con un cv de 3.8.</p>
+<p>A continuación se muestra la estimación con variable auxiliar <strong>Employees</strong>, dónde el ingreso generado por cada empleado es prácticamente igual para los dos dominios, pues se detalla una diferencia de <strong>0.4 USD</strong>. Los coeficientes de variación para ambas categorias de <em>SPAM</em> son aceptables. Aunque para SPAM=“no” es 6.7 y la estimación para “yes” podría ser más acertada con un cv de 3.8.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Rd_Income_Employees &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Employees, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svyratio)
 cv_Rd_Income_Employees &lt;-<span class="st"> </span><span class="kw">cv</span>(<span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Employees, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svyratio))<span class="op">*</span><span class="dv">100</span></code></pre></div>
 <p>En resumen se tiene que:</p>
 <ul>
-<li>Para el dominio SPAM = “no”, se estima que un empleado generaría <span class="math inline">\(5.9\)</span> <span class="math inline">\(USD\)</span> de ingreso.</li>
-<li>Para el dominio SPAM = “yes”, se estima que un empleado generaría <span class="math inline">\(6.3\)</span> <span class="math inline">\(USD\)</span> de ingreso.</li>
+<li>Para el dominio SPAM = “no”, se estima que un empleado generaría <strong>5.9 USD</strong> de ingreso.</li>
+<li>Para el dominio SPAM = “yes”, se estima que un empleado generaría <strong>6.3 USD</strong> de ingreso.</li>
 </ul>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
@@ -474,10 +474,8 @@ yes
 <p><br /><br /></p>
 </div>
 <div id="estimador-de-razon-global-para-taxes-y-employees" class="section level3">
-<h3>1.3. Estimador de razón global para ‘Taxes’ y ‘Employees’</h3>
-<ul>
-<li>Para el caso de la variable auxiliar ‘Taxes’, el estimador de razón está dado bajo la siguiente función:</li>
-</ul>
+<h3>1.3. Estimador de razón global para <em>Taxes</em> y <em>Employees</em></h3>
+<p>Para el caso de la variable auxiliar ‘Taxes’, el estimador de razón está dado bajo la siguiente función:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Estimador de razón global para Taxes</span>
 Rd_Income_Taxes_global &lt;-<span class="st"> </span><span class="kw">svyratio</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Taxes, <span class="dt">design =</span>  diseno)
 <span class="co"># Coeficiente de variación</span>
@@ -511,11 +509,10 @@ cv
 </tr>
 </tbody>
 </table>
-<p>Por lo que se espera que por cada <span class="math inline">\(34.77\)</span> USD de ingreso generado por una empresa, ésta pague <span class="math inline">\(1\)</span> USD por concepto de impuestos. Además podemos notar un coeficiente de variación aceptable</p>
-<p><br /><br /></p>
 <ul>
-<li>En cuanto a la variable auxiliar ‘Employees’, la estimación estará dada por la función a continuación:</li>
+<li>Se estima que por cada <strong>34.77 USD</strong> de ingreso generado por una empresa, ésta pague <strong>1 USD</strong> por concepto de impuestos. Además podemos notar un coeficiente de variación aceptable de 2.5.</li>
 </ul>
+<p>Para la variable auxiliar ‘Employees’, la estimación estará dada por la función a continuación:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Estimador de razón global para Taxes</span>
 Rd_Income_Employees_global &lt;-<span class="st"> </span><span class="kw">svyratio</span>(<span class="op">~</span>Income, <span class="dt">denominator=</span><span class="op">~</span>Employees, <span class="dt">design =</span>  diseno)
 <span class="co"># Coeficiente de variación</span>
@@ -549,21 +546,22 @@ cv
 </tr>
 </tbody>
 </table>
-<p>Por lo que se espera que cada empleado representa un ingreso de <span class="math inline">\(6.22\)</span> USD. Puede notarse un coeficiente de variación aceptable.</p>
+<ul>
+<li>Se estima que cada empleado representa un ingreso de <strong>6.22 USD</strong>. Puede notarse un coeficiente de variación aceptable de 3.4.</li>
+</ul>
 <p><br /><br /></p>
 </div>
 <div id="estimacion-del-income-promedio" class="section level3">
 <h3>1.4. Estimación del ‘Income’ promedio</h3>
-<ul>
-<li><em>Estimador del promedio para el dominio ‘SPAM’</em></li>
-</ul>
-<p>La aplicación del estimador para dicho dominio puede verse a continuación:</p>
+<div id="estimador-promedio-por-dominio-spam" class="section level4">
+<h4>1.4.1. Estimador promedio por dominio <em>SPAM</em></h4>
+<p>La aplicación del estimador para el promedio del dominio ‘SPAM’ puede verse a continuación:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mean_Income_dominio &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svymean)
 cv_mean_Income_dominio &lt;-<span class="st"> </span><span class="kw">cv</span>(<span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svymean))<span class="op">*</span><span class="dv">100</span></code></pre></div>
 <p>Como puede notarse, la estimación indica que:</p>
 <ol style="list-style-type: lower-alpha">
-<li>Para el dominio SPAM=“no”, el ingreso promedio de las empresas estaría al rededor de <span class="math inline">\(410.61\)</span> USD. Sin embargo el coeficiente de variación se aprecia un poco alto.</li>
-<li>Para el dominio SPAM=“yes”, el ingreso promedio de las empresas estaría al rededor de <span class="math inline">\(444.22\)</span> USD. En este caso se aprecia un bajo coeficiente de variación en la estimación.</li>
+<li>Para el dominio SPAM=“no”, el ingreso promedio de las empresas estaría al rededor de <strong>410.61 USD</strong>. Sin embargo el coeficiente de variación es alto 8.4.</li>
+<li>Para el dominio SPAM=“yes”, el ingreso promedio de las empresas estaría al rededor de <strong>444.22 USD</strong>. En este caso se aprecia un bajo coeficiente de variación en la estimación de 3.4.</li>
 </ol>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
@@ -614,16 +612,16 @@ yes
 </tbody>
 </table>
 <p><br /></p>
-<ul>
-<li><em>Estimador del promedio global</em></li>
-</ul>
+</div>
+<div id="estimador-promedio-global" class="section level4">
+<h4>1.4.1. Estimador promedio global</h4>
 <p>El cálculo del estimador del promedio de ingresos global está dado bajo la siguiente función:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Estimador del promedio global</span>
 Income_global &lt;-<span class="st"> </span><span class="kw">svymean</span>(<span class="op">~</span>Income, diseno)
 cv_Income_global &lt;-<span class="st"> </span><span class="kw">cv</span>(<span class="kw">svymean</span>(<span class="op">~</span>Income, diseno))<span class="op">*</span><span class="dv">100</span></code></pre></div>
 <p>A continuación puede notarse que:</p>
 <ol style="list-style-type: lower-alpha">
-<li>El ingreso medio global para cada empresa, se estima en <span class="math inline">\(432.17\)</span>. Se muestra un buen coeficiente de variación.</li>
+<li>El ingreso medio global para cada empresa, se estima en <strong>432.17 USD</strong> es el ingreso promedio. Se muestra un buen coeficiente de variación de 3.01.</li>
 </ol>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
@@ -661,22 +659,22 @@ Income
 <p><br /><br /></p>
 </div>
 </div>
+</div>
 <div id="estimador-de-postestratificacion-por-dominios" class="section level2">
 <h2>2. ESTIMADOR DE POSTESTRATIFICACIÓN POR DOMINIOS</h2>
-<p>Como se mencionó al inicio del presente documento, la muestra a utilizar es la misma del literal anterior. Dicha muestra ha sido seleccionada bajo un diseño de estratificación bajo la variable ‘Segments’. Durante la ejecución del presente numeral, la variable de posestratificación seleccionada es ‘SPAM’.</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Lectura de la muestra</span>
-muestra &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span class="st">&quot;./data/muestra_2etapas.rds&quot;</span>)</code></pre></div>
+<p>Como se mencionó al inicio del presente documento, la muestra a utilizar es la misma del literal anterior. Dicha muestra ha sido seleccionada bajo un diseño de estratificación bajo la variable ‘Segments’. La variable de posestratificación seleccionada es ‘SPAM’.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">muestra &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span class="st">&quot;./data/muestra_2etapas.rds&quot;</span>)</code></pre></div>
 <p><br /><br /></p>
 <div id="total-income-con-variable-auxiliar-level" class="section level3">
 <h3>2.1. Total ‘Income’ con variable auxiliar Level</h3>
-<p>En este punto necesitamos estimar el ‘Income’ para el dominio de posestratificación bajo la variable auxiliar ‘Level’. A efectos prácticos, ésta necesidad se traduce a realizar estimaciones bajo un dominio definido como el cruce entre el postestrato y la variable auxiliar, asi:</p>
-<p>Como hemos añadido una nueva varible, resulta necesario redefinir el diseño:</p>
+<p>En este punto se estima el ingreso ‘Income’ para el dominio de posestratificación bajo la variable auxiliar ‘Level’. A efectos prácticos, ésta necesidad se traduce en estimaciones bajo un dominio definido como el cruce entre el postestrato y la variable auxiliar, asi:</p>
+<p>Se utiliza una nueva varible y se redefine el diseño:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">diseno &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids =</span><span class="op">~</span><span class="st"> </span>Segments <span class="op">+</span><span class="st"> </span>ID, <span class="dt">strata =</span><span class="op">~</span><span class="st"> </span>estrato_segmento, 
                     <span class="dt">fpc =</span><span class="op">~</span><span class="st"> </span>N_h <span class="op">+</span><span class="st"> </span>Ni, <span class="dt">data =</span> muestra)</code></pre></div>
-<p>Así entonces, el estimador de postestratificación estará dado por la siguiente función:</p>
+<p>Así el estimador de postestratificación estará dado por la siguiente función:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Spam_Level_est &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>Spam_Level, diseno, <span class="dt">FUN=</span>svytotal)
 Spam_Level_cv &lt;-<span class="st"> </span><span class="dv">100</span> <span class="op">*</span><span class="st"> </span><span class="kw">cv</span>(<span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>Spam_Level, diseno, <span class="dt">FUN=</span>svytotal))</code></pre></div>
-<p>cuyos resultados son agregados en la siguiente tabla:</p>
+<p>Los resultados son agregados en la siguiente tabla:</p>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -752,14 +750,14 @@ yes
 </tr>
 </tbody>
 </table>
-<p>Nótese que los coeficientes de variación se observan bastante altos, por lo que el resultado de las estimaciones podría no ser tan acertado.</p>
+<p><strong>Nótese que los coeficientes de variación se observan bastante altos (Superiores a 5, incluso de dos dígitos), por lo que el resultado de las estimaciones podría no ser tan acertado.</strong></p>
 </div>
 <div id="estimacion-global-por-dominios" class="section level3">
 <h3>2.2. Estimación global por dominios</h3>
 <p>Ahora queremos obtener una estimación del total de ‘Income’ para el dominio definido por la variable ‘SPAM’.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Spam_est &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svytotal)
 cv_spam_est &lt;-<span class="st"> </span><span class="dv">100</span> <span class="op">*</span><span class="st"> </span><span class="kw">cv</span>(Spam_est &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svytotal))</code></pre></div>
-<p>cuyo resultado puede apreciarse en la siguiente tabla</p>
+<p>El resultado puede apreciarse en la siguiente tabla</p>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -808,18 +806,17 @@ yes
 </tr>
 </tbody>
 </table>
-<p>En este caso se observa que los coeficientes de variación resultan ser mejores, si no se considera la variable auxiliar ‘Level’.</p>
+<p>En este caso se observa que los coeficientes de variación resultan ser mejores, al no considerar la variable auxiliar ‘Level’ aunque son superiores 5.</p>
 <p><br /><br /></p>
 </div>
 <div id="estimacion-del-income-promedio-1" class="section level3">
 <h3>2.3. Estimación del ‘Income’ promedio</h3>
-<ul>
-<li>Postestratificado</li>
-</ul>
+<div id="postestratificado" class="section level4">
+<h4>2.3.1. Postestratificado</h4>
 <p>Para la estimación de del ingreso medio por empresa, considerando la variable de poestratificación “SPAM” y la variable auxiliar Level, se define el resultado bajo la siguiente función:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Spam_Level_est_mean &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>Spam_Level, diseno, <span class="dt">FUN=</span>svymean)
 cv_Spam_Level_mean &lt;-<span class="st"> </span><span class="dv">100</span> <span class="op">*</span><span class="st"> </span><span class="kw">cv</span>(<span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>Spam_Level, diseno, <span class="dt">FUN=</span>svymean))</code></pre></div>
-<p>dónde el resultado puede apreciarse a continuación:</p>
+<p>Dónde el resultado puede apreciarse a continuación:</p>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -895,15 +892,15 @@ yes
 </tr>
 </tbody>
 </table>
-<p>Nótese que en general el coeficiente de variación muestra un ajuste bueno de las estimaciones.</p>
+<p><strong>Nótese que en general el coeficiente de variación muestra un ajuste bueno de las estimaciones.</strong></p>
 <p><br /></p>
-<ul>
-<li>Global</li>
-</ul>
+</div>
+<div id="global" class="section level4">
+<h4>2.3.2. Global</h4>
 <p>La estimación del promedio global del ingreso por empresa, está dado por la siguiente función:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Spam_est_mean &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svymean)
 cv_spam_est_mean &lt;-<span class="st"> </span><span class="dv">100</span> <span class="op">*</span><span class="st"> </span><span class="kw">cv</span>(Spam_est &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>SPAM, diseno, <span class="dt">FUN=</span>svymean))</code></pre></div>
-<p>cuyos resultados pueden verse en la siguiente tabla:</p>
+<p>Los resultados pueden verse en la siguiente tabla:</p>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -952,17 +949,15 @@ yes
 </tr>
 </tbody>
 </table>
-<p>En general la estimación indica que las esmpresas que hacen uso de publicidad masiva mediante el uso de correo electrónico, tienen un ingreso promedio superior que aquellas que no lo hacen. El coeficiente de variación para el dominio SPAM=‘no’ resulta relativamente alto, por lo que su estimación podría no ser suficientemente confiable.</p>
+<p>En general la estimación indica que las empresas que hacen uso de publicidad masiva por medio de correo electrónico, tienen un ingreso promedio superior que aquellas que no lo hacen. El coeficiente de variación para el dominio SPAM=“no”&quot; resulta relativamente alto, por lo que su estimación podría no ser suficientemente confiable.</p>
 <p><br /><br /></p>
+</div>
 </div>
 </div>
 <div id="estimadores-sintetico-y-greg" class="section level2">
 <h2>3. ESTIMADORES SINTÉTICO Y GREG</h2>
-<p>Para la ejecución del presente numeral, la cual pretende realizar estimaciones de los ingresos para las empresas bajo ciertas condiciones y haciendo uso de estimación sintética y de regreción, definiremos una nueva muestra sobre la población de estudio definida por los datos contenido en la base de datos ‘BigLucy’.</p>
-<ul>
-<li>Marco muestral estratificado</li>
-</ul>
-<p>A continuación….</p>
+<p>Para la ejecución de las siguientes estimaciones de los ingresos utilizando la estimación sintética y de regresión, definiremos una nueva muestra sobre la población de estudio definida por los datos contenido en la base de datos <strong>BigLucy</strong>, con un diseño muestral estratificado por la variable <strong>Zone</strong>.</p>
+<p>A continuación se muestra la descripción del diseño muestral:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Marco Muestral</span>
 <span class="kw">data</span>(<span class="st">&quot;BigLucy&quot;</span>)
 <span class="kw">set.seed</span>(<span class="dv">100318</span>)
@@ -972,11 +967,188 @@ Nh &lt;-<span class="st"> </span><span class="kw">table</span>(BigLucy<span clas
 muh &lt;-<span class="st"> </span><span class="kw">aggregate</span>(Taxes <span class="op">~</span><span class="st"> </span>Zone, <span class="dt">FUN=</span>mean, <span class="dt">data=</span>BigLucy)<span class="op">$</span>Taxes
 sh &lt;-<span class="st"> </span><span class="kw">aggregate</span>(Taxes <span class="op">~</span><span class="st"> </span>Zone, <span class="dt">FUN=</span>sd, <span class="dt">data=</span>BigLucy)<span class="op">$</span>Taxes
 conf &lt;-<span class="st"> </span><span class="fl">0.95</span>
-rme &lt;-<span class="st"> </span><span class="fl">0.03</span></code></pre></div>
-<p>… se selecciona tamaño de menstrua…</p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">n_h &lt;-<span class="st"> </span><span class="kw">ss4stm</span>(Nh, muh, <span class="dt">sigmah=</span>sh, <span class="dt">DEFFh=</span><span class="dv">1</span>, <span class="dt">conf=</span>conf, <span class="dt">rme=</span>rme)<span class="op">$</span>nh
-<span class="kw">sum</span>(n_h)</code></pre></div>
-<pre><code>## [1] 5353</code></pre>
+rme &lt;-<span class="st"> </span><span class="fl">0.03</span>
+n_h &lt;-<span class="st"> </span><span class="kw">ss4stm</span>(Nh, muh, <span class="dt">sigmah=</span>sh, <span class="dt">DEFFh=</span><span class="dv">1</span>, <span class="dt">conf=</span>conf, <span class="dt">rme=</span>rme)<span class="op">$</span>nh</code></pre></div>
+<p>Se obtienen los tamaños de muestra y factores de expansión.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">100318</span>)
+estrato &lt;-<span class="st"> </span>sampling<span class="op">::</span><span class="kw">strata</span>(<span class="dt">data=</span>BigLucy, <span class="dt">stratanames=</span><span class="st">&quot;Zone&quot;</span>, 
+                            <span class="dt">size=</span>n_h, <span class="dt">method=</span><span class="st">&quot;srswor&quot;</span>, <span class="dt">description=</span><span class="ot">FALSE</span>)
+muestra_<span class="dv">3</span> &lt;-<span class="st"> </span>BigLucy[estrato<span class="op">$</span>ID_unit,]  
+muestra_<span class="dv">3</span> &lt;-<span class="st"> </span>sampling<span class="op">::</span><span class="kw">getdata</span>(BigLucy,estrato)</code></pre></div>
+<p>Con la muestra descrita anteriormente se realiza el diseño muestral estratificado por la variable <strong>Zone</strong></p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">diseno_estra &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids=</span><span class="op">~</span><span class="dv">1</span>, <span class="dt">strata =</span> <span class="op">~</span>Zone, <span class="dt">fpc =</span> <span class="op">~</span>N_h, <span class="dt">data=</span>muestra_<span class="dv">3</span>)</code></pre></div>
+<div id="estimador-sintetico" class="section level3">
+<h3>3.1. Estimador Sintético</h3>
+<p>Se utiliza la Variable de agrupación: Level (Big, Medium, Small) y Dominio: ISO. Se tienen las siguientes estimaciones para los ingresos ‘Income’:</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+ISO
+</th>
+<th style="text-align:right;">
+Big
+</th>
+<th style="text-align:right;">
+Medium
+</th>
+<th style="text-align:right;">
+Small
+</th>
+<th style="text-align:right;">
+Total_poblacional
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+384209.2
+</td>
+<td style="text-align:right;">
+15630682.47
+</td>
+<td style="text-align:right;">
+16102077
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:right;">
+3597216
+</td>
+<td style="text-align:right;">
+16851749.0
+</td>
+<td style="text-align:right;">
+76320.34
+</td>
+<td style="text-align:right;">
+20532656
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Total_poblacional
+</td>
+<td style="text-align:right;">
+3629710
+</td>
+<td style="text-align:right;">
+17057285.0
+</td>
+<td style="text-align:right;">
+15947738.00
+</td>
+<td style="text-align:right;">
+36634733
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Las estimaciones de la desviación estandar son muy aceptables, como se observa en la siguiente tabla. Se tiene un grado alto de confianza enel estimador sintético.</strong></p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+ISO
+</th>
+<th style="text-align:right;">
+Big
+</th>
+<th style="text-align:right;">
+Medium
+</th>
+<th style="text-align:right;">
+Small
+</th>
+<th style="text-align:right;">
+Total_poblacional
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:right;">
+NaN
+</td>
+<td style="text-align:right;">
+0.1613304
+</td>
+<td style="text-align:right;">
+0.0252936
+</td>
+<td style="text-align:right;">
+0.0249206
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:right;">
+0.0527250
+</td>
+<td style="text-align:right;">
+0.0243600
+</td>
+<td style="text-align:right;">
+0.3619761
+</td>
+<td style="text-align:right;">
+0.0220687
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+1
+</td>
+<td style="text-align:left;">
+Total_poblacional
+</td>
+<td style="text-align:right;">
+0.0524885
+</td>
+<td style="text-align:right;">
+0.0242128
+</td>
+<td style="text-align:right;">
+0.0250409
+</td>
+<td style="text-align:right;">
+0.0165217
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="estimador-greg" class="section level3">
+<h3>3.2. Estimador GREG</h3>
+<p>Para esta estimación se utiliza la muestra mencionada en el literal anterior y un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables SPAM e ISO como dominio).</p>
+<p>EL modelo tiene las sigueintes consideraciones:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mod_GREG &lt;-<span class="st"> </span><span class="kw">lm</span>(Income <span class="op">~</span><span class="st"> </span>Level <span class="op">+</span><span class="st"> </span>Employees <span class="op">+</span><span class="st"> </span>Taxes, <span class="dt">data=</span>muestra_<span class="dv">3</span>, 
+               <span class="dt">weights =</span> muestra_<span class="dv">3</span><span class="op">$</span>fexp<span class="op">*</span>(<span class="dv">1</span><span class="op">/</span>muestra_<span class="dv">3</span><span class="op">$</span>Employees))
+e &lt;-<span class="st"> </span>mod_GREG<span class="op">$</span>residuals</code></pre></div>
+</div>
 </div>
 
 <p> 2018-03 Realizado por: Camilo Aguilar - Nestor Serrano - Alvaro VIllalba</p>
