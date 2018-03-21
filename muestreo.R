@@ -403,8 +403,8 @@ muestra_3$fexp <-weights(diseno_estra)
 #*****************************************
 mod_GREG <- lm(Income ~ Level + Employees + Taxes, data=muestra_3, 
                weights = muestra_3$fexp*(1/muestra_3$Employees))
-summary(mod_GREG) 
 e <- mod_GREG$residuals
+summary(mod_GREG) 
 
 # Crear g
 mod_U <- lm(Income ~ Level + Employees + Taxes, data = BigLucy)
