@@ -328,7 +328,7 @@ div.tocify {
 </div>
 <div id="introduccion" class="section level2">
 <h2>INTRODUCCIÓN</h2>
-<p>El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener los ingresos (variable <a href>Income</a> de las empresa utilizando diferentes variables auxiliares disponibles en los datos poblacionales. Las técnicas son: muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos <a href>BigLucy</a> del paquete <a href>TeachingSampling</a> de <a href>R</a>. Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable <a href>Zone</a>.</p>
+<p>El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener los ingresos (variable <a href>Income</a>) de las empresa utilizando diferentes variables auxiliares disponibles en los datos poblacionales. Las técnicas son: muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos <a href>BigLucy</a> del paquete <a href>TeachingSampling</a> de <a href>R</a>. Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable <a href>Zone</a>.</p>
 <p>Primero se calculan los estimadores de razón para la variables ‘Income’ por el dominio ‘SPAM’, considerando como variables auxiliares ‘Taxes’ y ‘Employees’, también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio ‘SPAM’ y variable auxiliar ‘Level’, con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables ‘SPAM’ e ‘ISO’ como dominio).</p>
 <p><br /><br /></p>
 </div>
@@ -956,7 +956,7 @@ yes
 </div>
 <div id="estimadores-sintetico-y-greg" class="section level2">
 <h2>3. ESTIMADORES SINTÉTICO Y GREG</h2>
-<p>Para la ejecución de las siguientes estimaciones de los ingresos utilizando la estimación sintética y de regresión, definiremos una nueva muestra sobre la población de estudio definida por los datos contenido en la base de datos <strong>BigLucy</strong>, con un diseño muestral estratificado por la variable <strong>Zone</strong>.</p>
+<p>Para la ejecución de las siguientes estimaciones de los ingresos utilizando la estimación sintética y el generalizado de regresión, definiremos una nueva muestra sobre la población de estudio la cuál estará dada por los datos contenidos en la base de datos <strong>BigLucy</strong>, con un diseño muestral estratificado sobre la variable <strong>Zone</strong>.</p>
 <p>A continuación se muestra la descripción del diseño muestral:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Marco Muestral</span>
 <span class="kw">data</span>(<span class="st">&quot;BigLucy&quot;</span>)
@@ -967,19 +967,128 @@ Nh &lt;-<span class="st"> </span><span class="kw">table</span>(BigLucy<span clas
 muh &lt;-<span class="st"> </span><span class="kw">aggregate</span>(Taxes <span class="op">~</span><span class="st"> </span>Zone, <span class="dt">FUN=</span>mean, <span class="dt">data=</span>BigLucy)<span class="op">$</span>Taxes
 sh &lt;-<span class="st"> </span><span class="kw">aggregate</span>(Taxes <span class="op">~</span><span class="st"> </span>Zone, <span class="dt">FUN=</span>sd, <span class="dt">data=</span>BigLucy)<span class="op">$</span>Taxes
 conf &lt;-<span class="st"> </span><span class="fl">0.95</span>
-rme &lt;-<span class="st"> </span><span class="fl">0.03</span>
-n_h &lt;-<span class="st"> </span><span class="kw">ss4stm</span>(Nh, muh, <span class="dt">sigmah=</span>sh, <span class="dt">DEFFh=</span><span class="dv">1</span>, <span class="dt">conf=</span>conf, <span class="dt">rme=</span>rme)<span class="op">$</span>nh</code></pre></div>
-<p>Se obtienen los tamaños de muestra y factores de expansión.</p>
+rme &lt;-<span class="st"> </span><span class="fl">0.03</span></code></pre></div>
+<p>A partir de la función ‘ss4stm’ de la librería ‘samplesize4surveys’, determinamos el tamaño de muestra <span class="math inline">\(n_h\)</span> óptimo.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">n_h &lt;-<span class="st"> </span><span class="kw">ss4stm</span>(Nh, muh, <span class="dt">sigmah=</span>sh, <span class="dt">DEFFh=</span><span class="dv">1</span>, <span class="dt">conf=</span>conf, <span class="dt">rme=</span>rme)<span class="op">$</span>nh
+<span class="co"># Tamaño total de la muestra</span>
+<span class="kw">sum</span>(n_h)</code></pre></div>
+<pre><code>## [1] 5353</code></pre>
+<p>Para la selección de la muestra estratificada con los tamaños de muestra definidos anteriormente, utilizamos las siguientes funciones:</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">set.seed</span>(<span class="dv">100318</span>)
 estrato &lt;-<span class="st"> </span>sampling<span class="op">::</span><span class="kw">strata</span>(<span class="dt">data=</span>BigLucy, <span class="dt">stratanames=</span><span class="st">&quot;Zone&quot;</span>, 
                             <span class="dt">size=</span>n_h, <span class="dt">method=</span><span class="st">&quot;srswor&quot;</span>, <span class="dt">description=</span><span class="ot">FALSE</span>)
 muestra_<span class="dv">3</span> &lt;-<span class="st"> </span>BigLucy[estrato<span class="op">$</span>ID_unit,]  
-muestra_<span class="dv">3</span> &lt;-<span class="st"> </span>sampling<span class="op">::</span><span class="kw">getdata</span>(BigLucy,estrato)</code></pre></div>
+muestra_<span class="dv">3</span> &lt;-<span class="st"> </span>sampling<span class="op">::</span><span class="kw">getdata</span>(BigLucy, estrato)</code></pre></div>
 <p>Con la muestra descrita anteriormente se realiza el diseño muestral estratificado por la variable <strong>Zone</strong></p>
-<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">diseno_estra &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids=</span><span class="op">~</span><span class="dv">1</span>, <span class="dt">strata =</span> <span class="op">~</span>Zone, <span class="dt">fpc =</span> <span class="op">~</span>N_h, <span class="dt">data=</span>muestra_<span class="dv">3</span>)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">diseno_estra &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids=</span><span class="op">~</span><span class="dv">1</span>, <span class="dt">strata =</span> <span class="op">~</span>Zone, <span class="dt">fpc =</span> <span class="op">~</span>N_h, <span class="dt">data=</span>muestra_<span class="dv">3</span>)
+<span class="co"># Factores de expansión</span>
+muestra_<span class="dv">3</span><span class="op">$</span>fex &lt;-<span class="st"> </span><span class="kw">weights</span>(muestra_<span class="dv">3</span>)</code></pre></div>
+<p><br /><br /></p>
 <div id="estimador-sintetico" class="section level3">
 <h3>3.1. Estimador Sintético</h3>
-<p>Se utiliza la Variable de agrupación: Level (Big, Medium, Small) y Dominio: ISO. Se tienen las siguientes estimaciones para los ingresos ‘Income’:</p>
+<p>En este punto, vamos a realizar la estimación del ingreso para el dominio definido por la variable ‘ISO’, con un estimador sintético, definido sobre la variable auxiliar ‘Level’.</p>
+<p>Inicialmente resulta necesario obtener la estimación directa del promedio del ingreso sobre la variable auxiliar, lo cual se obtiene a continuación:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Estimador directo HT</span>
+Ybarra_g &lt;-<span class="st"> </span><span class="kw">svyby</span>(<span class="op">~</span>Income, <span class="op">~</span>Level, diseno_estra, <span class="dt">FUN =</span> svymean)[,<span class="dv">2</span>]</code></pre></div>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Level
+</th>
+<th style="text-align:right;">
+Income
+</th>
+<th style="text-align:right;">
+se
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Big
+</td>
+<td style="text-align:right;">
+1238.2842
+</td>
+<td style="text-align:right;">
+27.484067
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Medium
+</td>
+<td style="text-align:right;">
+668.1899
+</td>
+<td style="text-align:right;">
+8.515478
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Small
+</td>
+<td style="text-align:right;">
+277.5285
+</td>
+<td style="text-align:right;">
+5.660839
+</td>
+</tr>
+</tbody>
+</table>
+<p>Con dichos valores construímos una matriz definida por el domino (filas) y la variable auxiliar (columnas), en el que cada celda estará definido por el producto entre el ingreso medio de cada nivel con el tamaño del domino.</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+Big
+</th>
+<th style="text-align:right;">
+Medium
+</th>
+<th style="text-align:right;">
+Small
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+384209.2
+</td>
+<td style="text-align:right;">
+15630682.47
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:right;">
+3597216
+</td>
+<td style="text-align:right;">
+16851749.0
+</td>
+<td style="text-align:right;">
+76320.34
+</td>
+</tr>
+</tbody>
+</table>
+<p>Dicha operación define finalmente nuestro estimador sintético sobre el dominio, tal como puede observarse en la columna a continuación:</p>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
@@ -996,7 +1105,7 @@ Medium
 Small
 </th>
 <th style="text-align:right;">
-Total_poblacional
+Income_est
 </th>
 </tr>
 </thead>
@@ -1015,7 +1124,7 @@ no
 15630682.47
 </td>
 <td style="text-align:right;">
-16102077
+16014892
 </td>
 </tr>
 <tr>
@@ -1032,34 +1141,85 @@ yes
 76320.34
 </td>
 <td style="text-align:right;">
-20532656
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-Total_poblacional
-</td>
-<td style="text-align:right;">
-3629710
-</td>
-<td style="text-align:right;">
-17057285.0
-</td>
-<td style="text-align:right;">
-15947738.00
-</td>
-<td style="text-align:right;">
-36634733
+20525285
 </td>
 </tr>
 </tbody>
 </table>
-<p><strong>Las estimaciones de la desviación estandar son muy aceptables, como se observa en la siguiente tabla. Se tiene un grado alto de confianza enel estimador sintético.</strong></p>
+<p>Con ello ya tenemos las estimaciones del ingreso sobre el dominio ‘ISO’. Resulta necesario verificar si dichas estimaciones resultan plausibles, por lo que calcularemos sus respectivos coeficientes de variación.</p>
+<p>La variación de las estimaciones están definidas por el producto del cuadrado de los tamaños de cada celda y la varianza de la estimación directa. <strong>Las estimaciones de la desviación estandar son muy aceptables, como se observa en la siguiente tabla. Se tiene un grado alto de confianza enel estimador sintético.</strong></p>
 <table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">
 </th>
+<th style="text-align:right;">
+Big
+</th>
+<th style="text-align:right;">
+Medium
+</th>
+<th style="text-align:right;">
+Small
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+23974732
+</td>
+<td style="text-align:right;">
+101648803767
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:right;">
+6374619638
+</td>
+<td style="text-align:right;">
+46122011007
+</td>
+<td style="text-align:right;">
+2423410
+</td>
+</tr>
+</tbody>
+</table>
+<p>Obteniendo finalmente los coeficientes de variación por dominio.</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<tbody>
+<tr>
+<td style="text-align:left;">
+no
+</td>
+<td style="text-align:right;">
+1.991032
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+yes
+</td>
+<td style="text-align:right;">
+1.116314
+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Las estimaciones de la desviación estandar son muy aceptables. Se tiene un grado alto de confianza enel estimador sintético.</strong> La siguiente tabla muestra el resultado final.</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
 <th style="text-align:left;">
 ISO
 </th>
@@ -1073,7 +1233,10 @@ Medium
 Small
 </th>
 <th style="text-align:right;">
-Total_poblacional
+Income_est
+</th>
+<th style="text-align:right;">
+sd_ISO
 </th>
 </tr>
 </thead>
@@ -1082,73 +1245,188 @@ Total_poblacional
 <td style="text-align:left;">
 no
 </td>
-<td style="text-align:left;">
-no
+<td style="text-align:right;">
+0
 </td>
 <td style="text-align:right;">
-NaN
+384209.2
 </td>
 <td style="text-align:right;">
-0.1613304
+15630682.47
 </td>
 <td style="text-align:right;">
-0.0252936
+16014892
 </td>
 <td style="text-align:right;">
-0.0249206
+1.991032
 </td>
 </tr>
 <tr>
 <td style="text-align:left;">
 yes
 </td>
-<td style="text-align:left;">
-yes
+<td style="text-align:right;">
+3597216
 </td>
 <td style="text-align:right;">
-0.0527250
+16851749.0
 </td>
 <td style="text-align:right;">
-0.0243600
+76320.34
 </td>
 <td style="text-align:right;">
-0.3619761
+20525285
 </td>
 <td style="text-align:right;">
-0.0220687
-</td>
-</tr>
-<tr>
-<td style="text-align:left;">
-1
-</td>
-<td style="text-align:left;">
-Total_poblacional
-</td>
-<td style="text-align:right;">
-0.0524885
-</td>
-<td style="text-align:right;">
-0.0242128
-</td>
-<td style="text-align:right;">
-0.0250409
-</td>
-<td style="text-align:right;">
-0.0165217
+1.116314
 </td>
 </tr>
 </tbody>
 </table>
+<p><br /><br /></p>
 </div>
 <div id="estimador-greg" class="section level3">
 <h3>3.2. Estimador GREG</h3>
-<p>Para esta estimación se utiliza la muestra mencionada en el literal anterior y un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables SPAM e ISO como dominio).</p>
-<p>EL modelo tiene las sigueintes consideraciones:</p>
+<p>Para esta estimación se utiliza la muestra mencionada en el literal anterior y un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables ISO y SPAM como dominio). Resulta entonces re-definir nuestro diseño incluyendo esta nueva variable.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Cruce de la variable ISO y SPAM</span>
+muestra_<span class="dv">3</span><span class="op">$</span>ISO_SPAM &lt;-<span class="st"> </span><span class="kw">paste</span>(muestra_<span class="dv">3</span><span class="op">$</span>ISO, muestra_<span class="dv">3</span><span class="op">$</span>SPAM, <span class="dt">sep =</span> <span class="st">&quot;_&quot;</span>)
+<span class="kw">table</span>(muestra_<span class="dv">3</span><span class="op">$</span>ISO_SPAM)</code></pre></div>
+<pre><code>## 
+##   no_no  no_yes  yes_no yes_yes 
+##    1401    2093     705    1154</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">BigLucy<span class="op">$</span>ISO_SPAM &lt;-<span class="st"> </span><span class="kw">paste</span>(BigLucy<span class="op">$</span>ISO, BigLucy<span class="op">$</span>SPAM, <span class="dt">sep =</span> <span class="st">&quot;_&quot;</span>)
+<span class="kw">table</span>(BigLucy<span class="op">$</span>ISO_SPAM)</code></pre></div>
+<pre><code>## 
+##   no_no  no_yes  yes_no yes_yes 
+##   22425   34471   10930   17470</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Redefinimos el diseño incluyendo la nueva variable</span>
+diseno_strata &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids=</span><span class="op">~</span><span class="dv">1</span>, <span class="dt">strata =</span> <span class="op">~</span>Zone, <span class="dt">fpc =</span> <span class="op">~</span>N_h, <span class="dt">data=</span>muestra_<span class="dv">3</span>)
+muestra_<span class="dv">3</span><span class="op">$</span>fex &lt;-<span class="st"> </span><span class="kw">weights</span>(diseno_strata)</code></pre></div>
+<p>El modelo a considerar esta definido a partir de las variables Level, Employees y Taxes. Para garantizar que éste sea heterocedástico se ha incluído una ponderación o pesos al modelo.</p>
 <div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">mod_GREG &lt;-<span class="st"> </span><span class="kw">lm</span>(Income <span class="op">~</span><span class="st"> </span>Level <span class="op">+</span><span class="st"> </span>Employees <span class="op">+</span><span class="st"> </span>Taxes, <span class="dt">data=</span>muestra_<span class="dv">3</span>, 
-               <span class="dt">weights =</span> muestra_<span class="dv">3</span><span class="op">$</span>fexp<span class="op">*</span>(<span class="dv">1</span><span class="op">/</span>muestra_<span class="dv">3</span><span class="op">$</span>Employees))
-e &lt;-<span class="st"> </span>mod_GREG<span class="op">$</span>residuals</code></pre></div>
+               <span class="dt">weights =</span> muestra_<span class="dv">3</span><span class="op">$</span>fex<span class="op">*</span>(<span class="dv">1</span><span class="op">/</span>muestra_<span class="dv">3</span><span class="op">$</span>Employees))
+e &lt;-<span class="st"> </span>mod_GREG<span class="op">$</span>residuals
+<span class="kw">summary</span>(mod_GREG) </code></pre></div>
+<pre><code>## 
+## Call:
+## lm(formula = Income ~ Level + Employees + Taxes, data = muestra_3, 
+##     weights = muestra_3$fex * (1/muestra_3$Employees))
+## 
+## Weighted Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -984.82   -9.70    4.70   19.73  358.42 
+## 
+## Coefficients:
+##              Estimate Std. Error t value            Pr(&gt;|t|)    
+## (Intercept)   1.43317   16.90454   0.085               0.932    
+## LevelMedium 252.95569   14.19184  17.824 &lt;0.0000000000000002 ***
+## LevelSmall  177.41862   16.45285  10.783 &lt;0.0000000000000002 ***
+## Employees     0.55022    0.04579  12.016 &lt;0.0000000000000002 ***
+## Taxes        16.63951    0.20611  80.730 &lt;0.0000000000000002 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 48.83 on 5348 degrees of freedom
+## Multiple R-squared:  0.8658, Adjusted R-squared:  0.8657 
+## F-statistic:  8629 on 4 and 5348 DF,  p-value: &lt; 0.00000000000000022</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># Crear g &gt;&gt; modelo poblacional</span>
+mod_U &lt;-<span class="st"> </span><span class="kw">lm</span>(Income <span class="op">~</span><span class="st"> </span>Level <span class="op">+</span><span class="st"> </span>Employees <span class="op">+</span><span class="st"> </span>Taxes, <span class="dt">data =</span> BigLucy)
+
+<span class="co"># Matriz de diseño</span>
+X_U &lt;-<span class="st">  </span><span class="kw">model.matrix</span>(mod_U) 
+X_s &lt;-<span class="st"> </span><span class="kw">model.matrix</span>(mod_GREG)
+W &lt;-<span class="st"> </span><span class="kw">diag</span>(muestra_<span class="dv">3</span><span class="op">$</span>fex)
+g &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="ot">NA</span>, <span class="kw">nrow</span>(muestra_<span class="dv">3</span>))</code></pre></div>
+<p><br /></p>
+<p>Basado en nuestro modelo realizamos la estimación para cada dominio, para lo cuál resulta necesario ejecutar las siguientes líneas de código, las cuales corresponen a la estimación para el dominio ISO-SPAM=‘no_no’, pero que puede ser replicado para los dominios faltantes.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">SumUd_X &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">colSums</span>(X_U[BigLucy<span class="op">$</span>ISO_SPAM <span class="op">==</span><span class="st"> &quot;no_no&quot;</span>, ]))
+SumSd_X &lt;-<span class="st"> </span><span class="kw">as.matrix</span>(<span class="kw">colSums</span>(X_s[muestra_<span class="dv">3</span><span class="op">$</span>ISO_SPAM <span class="op">==</span><span class="st"> &quot;no_no&quot;</span>, ]<span class="op">*</span>
+<span class="st">                               </span>muestra_<span class="dv">3</span><span class="op">$</span>fex[muestra_<span class="dv">3</span><span class="op">$</span>ISO_SPAM <span class="op">==</span><span class="st"> &quot;no_no&quot;</span>]))
+
+z_dk &lt;-<span class="st"> </span><span class="kw">as.numeric</span>(muestra_<span class="dv">3</span><span class="op">$</span>ISO_SPAM <span class="op">==</span><span class="st"> &quot;no_no&quot;</span>)
+
+<span class="co"># Calculamos el factor de calibración g</span>
+<span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">nrow</span>(muestra_<span class="dv">3</span>)){
+  g[i] &lt;-<span class="st"> </span>z_dk[i] <span class="op">+</span><span class="st"> </span><span class="kw">t</span>(SumUd_X <span class="op">-</span><span class="st"> </span>SumSd_X) <span class="op">%*%</span>
+<span class="st">    </span><span class="kw">solve</span>(<span class="kw">t</span>(X_s) <span class="op">%*%</span><span class="st"> </span>W <span class="op">%*%</span><span class="st"> </span>X_s) <span class="op">%*%</span><span class="st"> </span><span class="kw">as.matrix</span>(X_s[i,])
+}
+
+yGreg_no_no &lt;-<span class="st"> </span><span class="kw">sum</span>(muestra_<span class="dv">3</span><span class="op">$</span>Income <span class="op">*</span><span class="st">  </span>g  <span class="op">*</span><span class="st"> </span>muestra_<span class="dv">3</span><span class="op">$</span>fex)
+<span class="kw">saveRDS</span>(yGreg_no_no, <span class="dt">file =</span> <span class="st">&quot;./results/yGreg_no_no.rds&quot;</span>)
+<span class="co"># Resultado poblacional:</span>
+<span class="kw">aggregate</span>(Income <span class="op">~</span><span class="st"> </span>ISO_SPAM, <span class="dt">FUN =</span> sum, <span class="dt">data =</span> BigLucy)
+
+<span class="co"># Varianza</span>
+muestra_<span class="dv">3</span><span class="op">$</span>U &lt;-<span class="st"> </span>g <span class="op">*</span><span class="st"> </span>mod_GREG<span class="op">$</span>residuals
+diseno_ESTMAS &lt;-<span class="st"> </span><span class="kw">svydesign</span>(<span class="dt">ids=</span><span class="op">~</span><span class="dv">1</span>, <span class="dt">strata =</span> <span class="op">~</span>Zone, <span class="dt">fpc =</span> <span class="op">~</span>N_h, <span class="dt">data=</span>muestra_<span class="dv">3</span>)</code></pre></div>
+<p>Para dicha estimación se calculan también los siguientes coeficientes de variación:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">cv_no_no &lt;-<span class="st"> </span><span class="dv">100</span> <span class="op">*</span><span class="st"> </span><span class="kw">svytotal</span>(<span class="op">~</span>U, diseno_ESTMAS) <span class="op">/</span><span class="st"> </span>yGreg_no_no
+greg_no_no &lt;-<span class="st"> </span><span class="kw">c</span>(yGreg_no_no, cv_no_no)</code></pre></div>
+<p>Al replicar el cálculo para los demás dominios, se obtienen finalmente el siguiente resultado, con sus respectivos coeficientes de variación:</p>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+Income_no_no
+</th>
+<th style="text-align:right;">
+Income_no_yes
+</th>
+<th style="text-align:right;">
+Income_yes_yes
+</th>
+<th style="text-align:right;">
+Income_yes_no
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Income
+</td>
+<td style="text-align:right;">
+6450354.788856
+</td>
+<td style="text-align:right;">
+9458909.4669459
+</td>
+<td style="text-align:right;">
+12855216.834347
+</td>
+<td style="text-align:right;">
+7709863.1951811
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+cv
+</td>
+<td style="text-align:right;">
+4.491021
+</td>
+<td style="text-align:right;">
+0.6503816
+</td>
+<td style="text-align:right;">
+1.976784
+</td>
+<td style="text-align:right;">
+0.9354866
+</td>
+</tr>
+</tbody>
+</table>
+<p>Nótese finalmente que los coeficientes evidencian un buen ajuste de las predicciones para todos los dominios. Recordemos que el dominio se ha definido con el cruce ISO-SPAM.</p>
+<p><br /><br /></p>
 </div>
+</div>
+<div id="apendice" class="section level2">
+<h2>APÉNDICE</h2>
+<p>Todo el código fuente podrá ser revisado en detalle en el siguiente enlace: <a href="https://github.com/CamiloAguilar/SmallAreaEstimation_1/blob/master/muestreo.R">Click aquí</a></p>
+<p><br /><br /></p>
 </div>
 
 <p> 2018-03 Realizado por: Camilo Aguilar - Nestor Serrano - Alvaro VIllalba</p>

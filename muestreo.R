@@ -260,12 +260,8 @@ Level_real_mean <- BigLucy %>%
 data.frame(Level_real_mean)
 
 
-#*****************************
-# 3. Diseño Estratificado ####
-#*****************************
-
 #************************************************************
-# 3.a. Diseño estratificado estrato Zone, semilla=100318 ####
+# 3 Diseño estratificado estrato Zone ####
 #************************************************************
 
 # Marco Muestral
@@ -306,9 +302,10 @@ head(muestra_3)
 
 # Diseño de muestra
 diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+#muestra_3$fex <- weights(diseno_estra)
 
 # Tamaños de Muestra por ISO y Level
-table(muestra_3$ISO,muestra_3$Level)
+table(muestra_3$ISO, muestra_3$Level)
 
 # Número de empresas por ISO y Level
 table(BigLucy$ISO,BigLucy$Level)
@@ -319,40 +316,28 @@ table(BigLucy$ISO,BigLucy$Level)
 # Variable de agrupación: Level (Big, Medium, Small)
 # Dominio: ISO
 
-# Estimador Directo
-est_income_total <- svyby(~Income, ~Level, diseno_estra, FUN = svytotal)
-est_income_mean <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)
-
 # Estimador directo HT
 Ybarra_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,2]
 
 D <- length(unique(muestra_3$ISO))
 G <- length(unique(muestra_3$Level))
-Ybarra_total <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
+
+# Matriz con promedios por columna
+Ybarpron <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
+
+# Tamaño de las celdas
 N_dg <- table(BigLucy$ISO, BigLucy$Level)
-total_Income <- Ybarra_total*N_dg
 
 # Estimaciones por dominio
+total_Income <- Ybarpron*N_dg
 Ysynth_d <- rowSums(total_Income) 
-
-# Total poblacional por Dominios
-agg_ISO <- BigLucy %>% group_by(ISO) %>% summarise(Income_total=sum(Income))
-
-# Total poblacional por Variable de agrupamiento
-agg_leve <- BigLucy %>% group_by(Level) %>% summarise(Income_total=sum(Income))
 
 # Estimador sintético  
 Estimador_Sintetico <- data.frame(ISO=names(total_Income[,1]), Big=total_Income[,1], 
                                   Medium=total_Income[,2], Small=total_Income[,3],
-                                  Total_poblacional=agg_ISO$Income_total)
-
-total <- data.frame(ISO="Total_poblacional", Big=agg_leve$Income_total[1], Medium=agg_leve$Income_total[2], 
-                    Small=agg_leve$Income_total[3], Total_poblacional=sum(agg_leve$Income_total))
-#names(total) <- names(Estimador_Sintetico)
-
-Estimador_Sinte <- rbind(Estimador_Sintetico, total)
-rownames(Estimador_Sinte)<-NULL
-Estimador_Sinte
+                                  ISO_estimado=Ysynth_d)
+rownames(Estimador_Sintetico)<-NULL
+Estimador_Sintetico
 
 
 #***************************
@@ -364,89 +349,184 @@ N_dg2 <- table(BigLucy$ISO, BigLucy$Level)^2
 A <- VarYtotal*N_dg2
 
 # Varianza por dominio
-VarYSintet_d <- rowSums(A) 
-VarYSintet_d
-sqrt(VarYSintet_d)/Ysynth_d*100
+VarYSynth_d <- rowSums(A) 
+sd_Ysynth_d <- sqrt(VarYSynth_d)/Ysynth_d*100
+sd_Ysynth_d
 
-Estimador_var_Sintetico <- data.frame(ISO=names(A[,1]), Big=A[,1], 
-                                  Medium=A[,2], Small=A[,3],
-                                  Total=VarYSintet_d)
+#**************
+# Tabla final
+#**************
+Estimador_Sintetico$sd_ISO <- sd_Ysynth_d
+Estimador_Sintetico
 
-var_total <- data.frame(ISO="Total", Big=sum(Estimador_var_Sintetico$Big, na.rm = T), 
-                        Medium=sum(Estimador_var_Sintetico$Medium, na.rm = T), 
-                        Small=sum(Estimador_var_Sintetico$Small, na.rm = T), 
-                        Total=sum(Estimador_var_Sintetico$Total, na.rm = T))
-
-Estimador_var_Sinte <- rbind(Estimador_Sintetico, total)
-
-Estimador_sd_Sinte <- data.frame(ISO=Estimador_var_Sinte[,1],
-                                 (sqrt(Estimador_var_Sinte[,c(2,3,4,5)])/Estimador_Sinte[,c(2,3,4,5)])*100)
-Estimador_sd_Sinte
 
 
 #*************************
 # 3.b. Estimador GREG ####
 #*************************
 
+# Cruce de la variable ISO y SPAM
 muestra_3$ISO_SPAM <- paste(muestra_3$ISO, muestra_3$SPAM, sep = "_")
 table(muestra_3$ISO_SPAM)
 
 BigLucy$ISO_SPAM <- paste(BigLucy$ISO, BigLucy$SPAM, sep = "_")
 table(BigLucy$ISO_SPAM)
 
-# Calculo de FEXP
-#muestra_3$fexp <- muestra_3$N_h/muestra_3$n_h
-muestra_3$fexp <-weights(diseno_estra)
+# Redefinimos el diseño incluyendo la nueva variable
+diseno_strata <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+muestra_3$fex <- weights(diseno_strata)
 
 #*****************************************  
 # Modelo Heterocedástico
 #*****************************************
 mod_GREG <- lm(Income ~ Level + Employees + Taxes, data=muestra_3, 
-               weights = muestra_3$fexp*(1/muestra_3$Employees))
+               weights = muestra_3$fex*(1/muestra_3$Employees))
 e <- mod_GREG$residuals
 summary(mod_GREG) 
 
 # Crear g
 mod_U <- lm(Income ~ Level + Employees + Taxes, data = BigLucy)
 
-X_U <-  model.matrix(mod_U) #MAtrix de dise?o
+# Matriz de diseño
+X_U <-  model.matrix(mod_U) 
 X_s <- model.matrix(mod_GREG)
+W <- diag(muestra_3$fex)
+g <- rep(NA, nrow(muestra_3))
 
-# Dise?o de muestra
-diseno_estratificado <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
-fexp_k <- weights(diseno_estratificado) # 1/pi_k
-
-# summary(pi_k)
-W <- diag(fexp_k)
-g <- rep(NA, nrow(muestra))
-
-
+#*********************************
 # Dominio ISO - SPAM = "no_no"
+#*********************************
+SumUd_X <- as.matrix(colSums(X_U[BigLucy$ISO_SPAM == "no_no", ]))
+SumSd_X <- as.matrix(colSums(X_s[muestra_3$ISO_SPAM == "no_no", ]*
+                               muestra_3$fex[muestra_3$ISO_SPAM == "no_no"]))
 
-SumUd_X <- as.matrix(colSums(X_U[BigLucy$IsoSpam == "no_no", ]))
-SumSd_X <- as.matrix(colSums(X_s[muestra$IsoSpam == "no_no", ]*
-                               fexp_k[muestra$IsoSpam == "no_no"]))
+z_dk <- as.numeric(muestra_3$ISO_SPAM == "no_no")
 
-z_dk <- as.numeric(muestra$IsoSpam == "no_no")
+# Calculamos el factor de calibración g
+for(i in 1:nrow(muestra_3)){
+  g[i] <- z_dk[i] + t(SumUd_X - SumSd_X) %*%
+    solve(t(X_s) %*% W %*% X_s) %*% as.matrix(X_s[i,])
+}
+summary(g)
 
-# i = 2
-for(i in 1:nrow(muestra)){
+yGreg_no_no <- sum(muestra_3$Income *  g  * muestra_3$fex)
+saveRDS(yGreg_no_no, file = "./results/yGreg_no_no.rds")
+# Resultado poblacional:
+aggregate(Income ~ ISO_SPAM, FUN = sum, data = BigLucy)
+
+# Varianza
+muestra_3$U <- g * mod_GREG$residuals
+diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+
+svytotal(~U, diseno_ESTMAS)
+cv_no_no <- 100 * svytotal(~U, diseno_ESTMAS) / yGreg_no_no
+
+greg_no_no <- c(yGreg_no_no, cv_no_no)
+saveRDS(greg_no_no, file = "./results/greg_no_no.rds")
+
+
+#************************************
+# Dominio ISO - SPAM = "no_yes"
+#************************************
+SumUd_X <- as.matrix(colSums(X_U[BigLucy$ISO_SPAM == "no_yes", ]))
+SumSd_X <- as.matrix(colSums(X_s[muestra_3$ISO_SPAM == "no_yes", ]*
+                               muestra_3$fex[muestra_3$ISO_SPAM == "no_yes"]))
+
+z_dk <- as.numeric(muestra_3$ISO_SPAM == "no_yes")
+
+# Calculamos el factor de calibración g
+for(i in 1:nrow(muestra_3)){
   g[i] <-   z_dk[i] + t(SumUd_X - SumSd_X) %*%
     solve(t(X_s) %*% W %*% X_s) %*% as.matrix(X_s[i,])
 }
 summary(g)
 
-yGreg_no_no <- sum(muestra$Income *  g  * fexp_k)
-aggregate(Income ~ IsoSpam, FUN = sum, data = BigLucy)
+yGreg_no_yes <- sum(muestra_3$Income *  g  * muestra_3$fex)
+saveRDS(yGreg_no_yes, file = "./results/yGreg_no_yes.rds")
+# Resultado poblacional:
+aggregate(Income ~ ISO_SPAM, FUN = sum, data = BigLucy)
 
-muestra$U <- g * mod_GREG$residuals
-diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra)
+# Varianza
+muestra_3$U2 <- g * mod_GREG$residuals
+diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
 
-svytotal(~U, diseno_ESTMAS)
-100 * svytotal(~U, diseno_ESTMAS) / yGreg_no_no
+svytotal(~U2, diseno_ESTMAS)
+cv_no_yes <- 100 * svytotal(~U2, diseno_ESTMAS) / yGreg_no_yes
 
+greg_no_yes <- c(yGreg_no_yes, cv_no_yes)
+saveRDS(greg_no_yes, file = "./results/greg_no_yes.rds")
 
+#**********************************
+# Dominio ISO - SPAM = "yes_yes"
+#**********************************
+SumUd_X <- as.matrix(colSums(X_U[BigLucy$ISO_SPAM == "yes_yes", ]))
+SumSd_X <- as.matrix(colSums(X_s[muestra_3$ISO_SPAM == "yes_yes", ]*
+                               muestra_3$fex[muestra_3$ISO_SPAM == "yes_yes"]))
 
+z_dk <- as.numeric(muestra_3$ISO_SPAM == "yes_yes")
+
+# Calculamos el factor de calibración g
+for(i in 1:nrow(muestra_3)){
+  g[i] <-   z_dk[i] + t(SumUd_X - SumSd_X) %*%
+    solve(t(X_s) %*% W %*% X_s) %*% as.matrix(X_s[i,])
+}
+summary(g)
+
+yGreg_yes_yes <- sum(muestra_3$Income *  g  * muestra_3$fex)
+saveRDS(yGreg_yes_yes, file = "./results/yGreg_yes_yes.rds")
+# Resultado poblacional:
+aggregate(Income ~ ISO_SPAM, FUN = sum, data = BigLucy)
+
+# Varianza
+muestra_3$U3 <- g * mod_GREG$residuals
+diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+
+svytotal(~U3, diseno_ESTMAS)
+cv_yes_yes <- 100 * svytotal(~U3, diseno_ESTMAS) / yGreg_yes_yes
+
+greg_yes_yes <- c(yGreg_yes_yes, cv_yes_yes)
+saveRDS(greg_yes_yes, file = "./results/greg_yes_yes.rds")
+
+#*********************************
+# Dominio ISO - SPAM = "yes_no"
+#*********************************
+SumUd_X <- as.matrix(colSums(X_U[BigLucy$ISO_SPAM == "yes_no", ]))
+SumSd_X <- as.matrix(colSums(X_s[muestra_3$ISO_SPAM == "yes_no", ]*
+                               muestra_3$fex[muestra_3$ISO_SPAM == "yes_no"]))
+
+z_dk <- as.numeric(muestra_3$ISO_SPAM == "yes_no")
+
+# Calculamos el factor de calibración g
+for(i in 1:nrow(muestra_3)){
+  g[i] <-   z_dk[i] + t(SumUd_X - SumSd_X) %*%
+    solve(t(X_s) %*% W %*% X_s) %*% as.matrix(X_s[i,])
+}
+summary(g)
+
+yGreg_yes_no <- sum(muestra_3$Income *  g  * muestra_3$fex)
+saveRDS(yGreg_yes_no, file = "./results/yGreg_yes_no.rds")
+# Resultado poblacional
+aggregate(Income ~ ISO_SPAM, FUN = sum, data = BigLucy)
+
+# Varianza
+muestra_3$U4 <- g * mod_GREG$residuals
+diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+
+svytotal(~U4, diseno_ESTMAS)
+cv_yes_no <- 100 * svytotal(~U4, diseno_ESTMAS) / yGreg_yes_no
+
+greg_yes_no <- c(yGreg_yes_no, cv_yes_no)
+saveRDS(greg_yes_no, file = "./results/greg_yes_no.rds")
+
+#********************************************
+# Resultado final por cada dominio SPAM-ISO
+#********************************************
+esti_greg <- abs(data.frame(greg_no_no,greg_no_yes,greg_yes_yes,greg_yes_no))
+rownames(esti_greg)<-c("Income", "cv")
+names(esti_greg)<-c("Income_no_no", "Income_no_yes", "Income_yes_yes", "Income_yes_no")
+esti_greg
+
+saveRDS(esti_greg, file = "./results/esti_greg.rds")
 
 
 

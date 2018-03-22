@@ -23,7 +23,7 @@ close(fileConn)
 
 ## INTRODUCCIÓN
 
-El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener los ingresos (variable [Income]() de las empresa utilizando diferentes variables auxiliares disponibles en los datos poblacionales. Las técnicas son: muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos [BigLucy]() del paquete [TeachingSampling]() de [R](). Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable [Zone](). 
+El presente documento tiene como objetivo realizar la aplicación de diferentes técnicas de estimación por muestreo para obtener los ingresos (variable [Income]()) de las empresa utilizando diferentes variables auxiliares disponibles en los datos poblacionales. Las técnicas son: muestreo estadístico de razón, de postestratificación, sintético y estimador GREG por dominios. Todas aplicaciones han sido realizadas sobre las base de datos [BigLucy]() del paquete [TeachingSampling]() de [R](). Para el caso de los dos primeros numerales se utilizó un diseño muestral bietápico MAS-MAS y en el tercero se genera un diseño muestral con estratificación sobre variable [Zone](). 
 
 Primero se calculan los estimadores de razón para la variables 'Income' por el dominio 'SPAM', considerando como variables auxiliares 'Taxes' y 'Employees', también se llevan a cabo las estimaciones globales y promedio. Segundo se calcula el estimador de postestratificación por dominio 'SPAM' y variable auxiliar 'Level', con las estimaciones globales y promedios. Por último se realiza el calculo de estimador sintético y GREG utilizando un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables 'SPAM' e 'ISO' como dominio). 
 
@@ -355,7 +355,7 @@ En general la estimación indica que las empresas que hacen uso de publicidad ma
 
 ## 3. ESTIMADORES SINTÉTICO Y GREG
 
-Para la ejecución de las siguientes estimaciones de los ingresos utilizando la estimación sintética y de regresión, definiremos una nueva muestra sobre la población de estudio definida por los datos contenido en la base de datos **BigLucy**, con un diseño muestral estratificado por la variable **Zone**.
+Para la ejecución de las siguientes estimaciones de los ingresos utilizando la estimación sintética y el generalizado de regresión, definiremos una nueva muestra sobre la población de estudio la cuál estará dada por los datos contenidos en la base de datos **BigLucy**, con un diseño muestral estratificado sobre la variable **Zone**.
 
 A continuación se muestra la descripción del diseño muestral:
 
@@ -370,18 +370,26 @@ muh <- aggregate(Taxes ~ Zone, FUN=mean, data=BigLucy)$Taxes
 sh <- aggregate(Taxes ~ Zone, FUN=sd, data=BigLucy)$Taxes
 conf <- 0.95
 rme <- 0.03
-n_h <- ss4stm(Nh, muh, sigmah=sh, DEFFh=1, conf=conf, rme=rme)$nh
 ```
 
-Se obtienen los tamaños de muestra y factores de expansión.
+A partir de la función 'ss4stm' de la librería 'samplesize4surveys', determinamos el tamaño de muestra $n_h$ óptimo.
+
+```{r tam_muestra, echo=TRUE}
+n_h <- ss4stm(Nh, muh, sigmah=sh, DEFFh=1, conf=conf, rme=rme)$nh
+# Tamaño total de la muestra
+sum(n_h)
+```
+
+Para la selección de la muestra estratificada con los tamaños de muestra definidos anteriormente, utilizamos las siguientes funciones:
 
 ```{r tamanoo, echo=TRUE}
 set.seed(100318)
 estrato <- sampling::strata(data=BigLucy, stratanames="Zone", 
                             size=n_h, method="srswor", description=FALSE)
 muestra_3 <- BigLucy[estrato$ID_unit,]  
-muestra_3 <- sampling::getdata(BigLucy,estrato)
+muestra_3 <- sampling::getdata(BigLucy, estrato)
 ```
+
 
 ```{r tamano_01, echo=FALSE}
 Tamanos_Estrato <- as.data.frame(table(BigLucy$Zone))
@@ -397,56 +405,75 @@ Con la muestra descrita anteriormente se realiza el diseño muestral estratifica
 
 ```{r tamano_02, echo=TRUE}
 diseno_estra <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+# Factores de expansión
+muestra_3$fex <- weights(muestra_3)
 ```
+
+<br/><br/>
 
 ### 3.1. Estimador Sintético
 
-Se utiliza la Variable de agrupación: Level (Big, Medium, Small) y Dominio: ISO. Se tienen las siguientes estimaciones para los ingresos 'Income':
+En este punto, vamos a realizar la estimación del ingreso para el dominio definido por la variable 'ISO', con un estimador sintético, definido sobre la variable auxiliar 'Level'.
 
-```{r tamano_03, echo=FALSE}
-# Estimador Directo
-est_income_total <- svyby(~Income, ~Level, diseno_estra, FUN = svytotal)
-est_income_mean <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)
+Inicialmente resulta necesario obtener la estimación directa del promedio del ingreso sobre la variable auxiliar, lo cual se obtiene a continuación:
 
+```{r Y_barra, echo=TRUE}
 # Estimador directo HT
 Ybarra_g <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)[,2]
+```
 
+```{r Y_barra_tabla, echo=FALSE}
+Y_bar_dir <- svyby(~Income, ~Level, diseno_estra, FUN = svymean)
+rownames(Y_bar_dir) <- NULL
+
+kable(Y_bar_dir, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
+
+```
+
+Con dichos valores construímos una matriz definida por el domino (filas) y la variable auxiliar (columnas), en el que cada celda estará definido por el producto entre el ingreso medio de cada nivel con el tamaño del domino. 
+
+```{r income_celda, echo=FALSE}
 D <- length(unique(muestra_3$ISO))
 G <- length(unique(muestra_3$Level))
-Ybarra_total <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
-N_dg <- table(BigLucy$ISO, BigLucy$Level)
-total_Income <- Ybarra_total*N_dg
 
+# Matriz con promedios por columna
+Ybarpron <- t(Ybarra_g * t(matrix(1,nrow = D,ncol = G)))
+
+# Tamaño de las celdas
+N_dg <- table(BigLucy$ISO, BigLucy$Level)
+
+# Ingreso por celda
+total_Income <- Ybarpron*N_dg
+
+kable(total_Income, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
+
+```
+
+Dicha operación define finalmente nuestro estimador sintético sobre el dominio, tal como puede observarse en la columna a continuación:
+
+```{r Ysynth, echo=FALSE}
 # Estimaciones por dominio
 Ysynth_d <- rowSums(total_Income) 
-
-# Total poblacional por Dominios
-agg_ISO <- BigLucy %>% group_by(ISO) %>% summarise(Income_total=sum(Income))
-
-# Total poblacional por Variable de agrupamiento
-agg_leve <- BigLucy %>% group_by(Level) %>% summarise(Income_total=sum(Income))
 
 # Estimador sintético  
 Estimador_Sintetico <- data.frame(ISO=names(total_Income[,1]), Big=total_Income[,1], 
                                   Medium=total_Income[,2], Small=total_Income[,3],
-                                  Total_poblacional=agg_ISO$Income_total)
+                                  Income_est=Ysynth_d)
+rownames(Estimador_Sintetico)<-NULL
 
-total <- data.frame(ISO="Total_poblacional", Big=agg_leve$Income_total[1], Medium=agg_leve$Income_total[2], 
-                    Small=agg_leve$Income_total[3], Total_poblacional=sum(agg_leve$Income_total))
-#names(total) <- names(Estimador_Sintetico)
-
-Estimador_Sinte <- rbind(Estimador_Sintetico, total)
-rownames(Estimador_Sinte)<-NULL
-```
-
-```{r tamano_04, echo=FALSE}
-kable(Estimador_Sinte, "html") %>%
+kable(Estimador_Sintetico, "html") %>%
   kable_styling("striped", full_width = F, position = "center")
+
 ```
 
+Con ello ya tenemos las estimaciones del ingreso sobre el dominio 'ISO'. Resulta necesario verificar si dichas estimaciones resultan plausibles, por lo que calcularemos sus respectivos coeficientes de variación.
+
+La variación de las estimaciones están definidas por el producto del cuadrado de los tamaños de cada celda y la varianza de la estimación directa.
 **Las estimaciones de la desviación estandar son muy aceptables, como se observa en la siguiente tabla. Se tiene un grado alto de confianza enel estimador sintético.**
 
-```{r tamano_05, echo=FALSE}
+```{r Yvar, echo=FALSE}
 #***************************
 #Estimación de la varianza
 #***************************
@@ -455,59 +482,130 @@ VarYtotal <- t(VarY_g * t(matrix(1,nrow = D,ncol = G)))
 N_dg2 <- table(BigLucy$ISO, BigLucy$Level)^2
 A <- VarYtotal*N_dg2
 
-# Varianza por dominio
-VarYSintet_d <- rowSums(A) 
+kable(A, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
 
-Estimador_var_Sintetico <- data.frame(ISO=names(A[,1]), Big=A[,1], 
-                                  Medium=A[,2], Small=A[,3],
-                                  Total=VarYSintet_d)
 
-var_total <- data.frame(ISO="Total", Big=sum(Estimador_var_Sintetico$Big, na.rm = T), 
-                        Medium=sum(Estimador_var_Sintetico$Medium, na.rm = T), 
-                        Small=sum(Estimador_var_Sintetico$Small, na.rm = T), 
-                        Total=sum(Estimador_var_Sintetico$Total, na.rm = T))
-
-Estimador_var_Sinte <- rbind(Estimador_Sintetico, total)
-
-Estimador_sd_Sinte <- data.frame(ISO=Estimador_var_Sinte[,1],
-                                 (sqrt(Estimador_var_Sinte[,c(2,3,4,5)])/Estimador_Sinte[,c(2,3,4,5)])*100)
 ```
 
-```{r tamano_06, echo=FALSE}
-kable(Estimador_sd_Sinte, "html") %>%
+Obteniendo finalmente los coeficientes de variación por dominio. 
+
+```{r var_tabla, echo=FALSE}
+# Coeficiente de variación por dominio
+VarYSynth_d <- rowSums(A) 
+sd_Ysynth_d <- sqrt(VarYSynth_d)/Ysynth_d*100
+
+kable(sd_Ysynth_d, "html") %>%
   kable_styling("striped", full_width = F, position = "center")
 ```
 
+**Las estimaciones de la desviación estandar son muy aceptables. Se tiene un grado alto de confianza enel estimador sintético.** La siguiente tabla muestra el resultado final.
+
+```{r synth_final, echo=FALSE}
+#**************
+# Tabla final
+#**************
+Estimador_Sintetico$sd_ISO <- sd_Ysynth_d
+kable(Estimador_Sintetico, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
+
+```
+
+<br/><br/>
+
 ### 3.2. Estimador GREG
 
-Para esta estimación se utiliza la muestra mencionada en el literal anterior y un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables SPAM e ISO como dominio). 
+Para esta estimación se utiliza la muestra mencionada en el literal anterior y un modelo de regresión multivariado con intercepto y heterocedástico (considerando el cruce de las variables ISO y SPAM como dominio). Resulta entonces re-definir nuestro diseño incluyendo esta nueva variable.
 
-EL modelo tiene las sigueintes consideraciones:
-
-```{r tamano_07, echo=FALSE}
+```{r rediseno, echo=TRUE}
+# Cruce de la variable ISO y SPAM
 muestra_3$ISO_SPAM <- paste(muestra_3$ISO, muestra_3$SPAM, sep = "_")
+table(muestra_3$ISO_SPAM)
+
 BigLucy$ISO_SPAM <- paste(BigLucy$ISO, BigLucy$SPAM, sep = "_")
-muestra_3$fexp <-weights(diseno_estra)
+table(BigLucy$ISO_SPAM)
+
+# Redefinimos el diseño incluyendo la nueva variable
+diseno_strata <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+muestra_3$fex <- weights(diseno_strata)
 ```
 
+El modelo a considerar esta definido a partir de las variables Level, Employees y Taxes. Para garantizar que éste sea heterocedástico se ha incluído una ponderación o pesos al modelo. 
 
-```{r tamano_08, echo=TRUE}
+```{r modelo1, echo=TRUE}
 mod_GREG <- lm(Income ~ Level + Employees + Taxes, data=muestra_3, 
-               weights = muestra_3$fexp*(1/muestra_3$Employees))
+               weights = muestra_3$fex*(1/muestra_3$Employees))
 e <- mod_GREG$residuals
+summary(mod_GREG) 
+
+# Crear g >> modelo poblacional
+mod_U <- lm(Income ~ Level + Employees + Taxes, data = BigLucy)
+
+# Matriz de diseño
+X_U <-  model.matrix(mod_U) 
+X_s <- model.matrix(mod_GREG)
+W <- diag(muestra_3$fex)
+g <- rep(NA, nrow(muestra_3))
+
+```
+
+<br/>
+
+Basado en nuestro modelo realizamos la estimación para cada dominio, para lo cuál resulta necesario ejecutar las siguientes líneas de código, las cuales corresponen a la estimación para el dominio ISO-SPAM='no_no', pero que puede ser replicado para los dominios faltantes.
+
+```{r dominio1, echo=TRUE, eval=FALSE}
+SumUd_X <- as.matrix(colSums(X_U[BigLucy$ISO_SPAM == "no_no", ]))
+SumSd_X <- as.matrix(colSums(X_s[muestra_3$ISO_SPAM == "no_no", ]*
+                               muestra_3$fex[muestra_3$ISO_SPAM == "no_no"]))
+
+z_dk <- as.numeric(muestra_3$ISO_SPAM == "no_no")
+
+# Calculamos el factor de calibración g
+for(i in 1:nrow(muestra_3)){
+  g[i] <- z_dk[i] + t(SumUd_X - SumSd_X) %*%
+    solve(t(X_s) %*% W %*% X_s) %*% as.matrix(X_s[i,])
+}
+
+yGreg_no_no <- sum(muestra_3$Income *  g  * muestra_3$fex)
+saveRDS(yGreg_no_no, file = "./results/yGreg_no_no.rds")
+# Resultado poblacional:
+aggregate(Income ~ ISO_SPAM, FUN = sum, data = BigLucy)
+
+# Varianza
+muestra_3$U <- g * mod_GREG$residuals
+diseno_ESTMAS <- svydesign(ids=~1, strata = ~Zone, fpc = ~N_h, data=muestra_3)
+
+```
+
+Para dicha estimación se calculan también los siguientes coeficientes de variación:
+
+```{r vardom1, echo=TRUE, eval=FALSE}
+cv_no_no <- 100 * svytotal(~U, diseno_ESTMAS) / yGreg_no_no
+greg_no_no <- c(yGreg_no_no, cv_no_no)
+```
+
+Al replicar el cálculo para los demás dominios, se obtienen finalmente el siguiente resultado, con sus respectivos coeficientes de variación:
+
+```{r lee_resultado, echo=FALSE}
+esti_greg <- readRDS("./results/esti_greg.rds")
 ```
 
 
+```{r escribe_tabla, echo=FALSE}
+kable(esti_greg, "html") %>%
+  kable_styling("striped", full_width = F, position = "center")
 
+```
 
+Nótese finalmente que los coeficientes evidencian un buen ajuste de las predicciones para todos los dominios. Recordemos que el dominio se ha definido con el cruce ISO-SPAM. 
 
+<br/><br/>
 
+## APÉNDICE
 
+Todo el código fuente podrá ser revisado en detalle en el siguiente enlace: [Click aquí](https://github.com/CamiloAguilar/SmallAreaEstimation_1/blob/master/muestreo.R)
 
-
-
-
-
+<br/><br/>
 
 
 
